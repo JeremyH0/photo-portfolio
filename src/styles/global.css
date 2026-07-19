@@ -84,46 +84,21 @@ html.is-transitioning body {
   cursor: progress;
 }
 
-/* Layered slats curtain — JS drives the choreography and accent color. */
-.transition-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: grid;
-  place-items: center;
-  visibility: hidden;
-  overflow: hidden;
-}
-
-.overlay-slat {
+/* The tutorial's sixth transition (pseudo-element curtain): the next
+   container opens from a slit while this colored ::before lifts off it.
+   Structure and values follow the Codrops article verbatim; the color is
+   set per-navigation by JS via --curtain-overlay. */
+.curtain__transition::before {
+  content: "";
   position: absolute;
-  top: -1%;
-  height: 102%;
-  transform: translateY(103%);
-}
-
-.overlay-slat--back {
-  background: var(--color-coral);
-}
-
-.overlay-slat--front {
-  background: #14110d;
-}
-
-.transition-overlay__title {
-  position: relative;
-  z-index: 2;
-  overflow: hidden;
-  color: #f2efe8;
-  font-family: var(--font-serif);
-  font-size: clamp(2.5rem, 8vw, 6.5rem);
-  letter-spacing: 0.02em;
-  line-height: 1.15;
-}
-
-.transition-overlay__title .char {
-  display: inline-block;
-  will-change: transform;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  will-change: clip-path;
+  background-color: var(--curtain-overlay, var(--color-coral));
+  clip-path: var(--clip, inset(0 0 100% 0));
 }
 
 /* Clone used by the gallery → photo FLIP transition. */

@@ -16,6 +16,11 @@
  */
 import barba from '@barba/core';
 import gsap from 'gsap';
+import { CustomEase } from 'gsap/CustomEase';
+
+gsap.registerPlugin(CustomEase);
+// The tutorial's easing curve, verbatim.
+CustomEase.create('hop', '0.56, 0, 0.35, 0.98');
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ACCENTS = ['#ff4b24', '#2743ff', '#ffb400'];
@@ -187,10 +192,10 @@ function initCursor() {
   document.documentElement.classList.add('has-cursor');
   cursor.classList.add('is-hidden');
 
-  const dotX = gsap.quickTo(dot, 'x', { duration: 0.12, ease: 'power3' });
-  const dotY = gsap.quickTo(dot, 'y', { duration: 0.12, ease: 'power3' });
-  const ringX = gsap.quickTo(ring, 'x', { duration: 0.45, ease: 'power3' });
-  const ringY = gsap.quickTo(ring, 'y', { duration: 0.45, ease: 'power3' });
+  const dotX = gsap.quickTo(dot, 'x', { duration: 0.05, ease: 'power3' });
+  const dotY = gsap.quickTo(dot, 'y', { duration: 0.05, ease: 'power3' });
+  const ringX = gsap.quickTo(ring, 'x', { duration: 0.18, ease: 'power3' });
+  const ringY = gsap.quickTo(ring, 'y', { duration: 0.18, ease: 'power3' });
 
   window.addEventListener('pointermove', (e) => {
     cursor.classList.remove('is-hidden');
@@ -227,44 +232,11 @@ const cursorEl = initCursor();
 
 /* ---------------- transitions ---------------- */
 
-const overlay = document.querySelector<HTMLElement>('.transition-overlay')!;
-const overlayTitle = overlay.querySelector<HTMLElement>('.transition-overlay__title')!;
-const backSlats = overlay.querySelectorAll<HTMLElement>('.overlay-slat--back');
-const frontSlats = overlay.querySelectorAll<HTMLElement>('.overlay-slat--front');
 let accentIndex = 0;
 
 function nextAccent(): string {
   accentIndex = (accentIndex + 1) % ACCENTS.length;
   return ACCENTS[accentIndex];
-}
-
-/** Accent wave, then dark wave, then the destination title types in. */
-function overlayIn(title: string): gsap.core.Timeline {
-  overlayTitle.textContent = title;
-  const chars = splitChars(overlayTitle);
-  const tl = gsap.timeline();
-  tl.set(overlay, { visibility: 'visible' })
-    .set(backSlats, { backgroundColor: nextAccent(), yPercent: 103 })
-    .set(frontSlats, { yPercent: 103 })
-    .to(backSlats, { yPercent: 0, duration: 0.55, ease: 'power4.inOut', stagger: 0.055 })
-    .to(frontSlats, { yPercent: 0, duration: 0.55, ease: 'power4.inOut', stagger: 0.055 }, '-=0.42')
-    .from(
-      chars,
-      { yPercent: 120, skewY: 5, duration: 0.65, ease: 'power4.out', stagger: 0.03 },
-      '-=0.2',
-    );
-  return tl;
-}
-
-/** Title exits, slats continue upward in two staggered waves. */
-function overlayOut(): gsap.core.Timeline {
-  const chars = overlayTitle.querySelectorAll('.char');
-  const tl = gsap.timeline();
-  tl.to(chars, { yPercent: -120, duration: 0.45, ease: 'power4.in', stagger: 0.02 })
-    .to(frontSlats, { yPercent: -103, duration: 0.6, ease: 'power4.inOut', stagger: 0.05 }, '-=0.1')
-    .to(backSlats, { yPercent: -103, duration: 0.6, ease: 'power4.inOut', stagger: 0.05 }, '-=0.48')
-    .set(overlay, { visibility: 'hidden' });
-  return tl;
 }
 
 function photoLinkFrom(trigger: unknown): HTMLElement | null {
@@ -358,26 +330,50 @@ function initBarba() {
         },
       },
       {
-        // Section change: layered slats curtain with the destination name.
-        name: 'slats-curtain',
+        // Section change: the tutorial's sixth transition (pseudo-element
+        // curtain, leandra-isler.ch-inspired). The next page opens from a
+        // thin slit while a colored curtain lifts off it. Sync mode: both
+        // containers are in the DOM; the old page stays beneath.
+        name: 'curtain',
         custom: ({ current, next, trigger }) =>
           current.namespace !== next.namespace &&
           !(next.namespace === 'photo' && photoLinkFrom(trigger) !== null),
-        async leave({ current, next }) {
-          const title = next.container?.dataset.pageTitle ?? '';
-          gsap.to(current.container, { scale: 0.965, autoAlpha: 0.55, duration: 0.7, ease: 'power3.inOut' });
-          await overlayIn(title);
+        sync: true,
+        before(data) {
+          data.next.container.classList.add('curtain__transition');
+          gsap.set(data.next.container, {
+            position: 'fixed',
+            inset: 0,
+            clipPath: 'polygon(15% 75%, 85% 75%, 85% 75%, 15% 75%)',
+            zIndex: 3,
+            height: '100vh',
+            overflow: 'hidden',
+            '--clip': 'inset(0 0 0% 0)',
+            '--curtain-overlay': nextAccent(),
+          });
         },
-        enter() {
+        enter(data) {
+          const tl = gsap.timeline({
+            defaults: { duration: 1.25, ease: 'hop' },
+            onComplete: () => tl.kill(),
+          });
+
+          tl.to(data.next.container, {
+            clipPath: 'polygon(0% 100%, 100% 100%, 100% 0%, 0% 0%)',
+          });
+
+          tl.to(data.next.container, { '--clip': 'inset(0 0 100% 0)' }, '<+=0.285');
+
+          return new Promise<void>((resolve) => {
+            tl.call(() => resolve());
+          });
+        },
+        after(data) {
+          data.next.container.classList.remove('curtain__transition');
+          // Adaptation: our pages scroll — reset before releasing the fixed
+          // positioning so the revealed page starts at the top.
           window.scrollTo(0, 0);
-        },
-        async after({ next }) {
-          gsap.fromTo(
-            next.container,
-            { scale: 1.02 },
-            { scale: 1, duration: 0.9, ease: 'power3.out', clearProps: 'transform' },
-          );
-          await overlayOut();
+          gsap.set(data.next.container, { clearProps: 'all' });
         },
       },
       {

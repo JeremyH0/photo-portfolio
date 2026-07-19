@@ -16,6 +16,7 @@ declare module '@barba/core' {
     name?: string;
     sync?: boolean;
     custom?: (data: TransitionData) => boolean;
+    before?: (data: TransitionData) => void | Promise<unknown>;
     once?: (data: TransitionData) => void | Promise<unknown>;
     leave?: (data: TransitionData) => void | Promise<unknown>;
     enter?: (data: TransitionData) => void | Promise<unknown> | gsap.core.Tween;

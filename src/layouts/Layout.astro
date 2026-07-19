@@ -58,35 +58,16 @@ const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
         data-barba="container"
         data-barba-namespace={namespace}
         data-page-title={pageTitle}
-        class="mx-auto flex min-h-svh max-w-[1600px] flex-col px-5 md:px-10"
+        class="min-h-svh bg-paper"
       >
-        <Header lang={lang} basePath={basePath} photographerName={photographerName} />
-        <main class="flex-1">
-          <slot />
-        </main>
-        <Footer lang={lang} photographerName={photographerName} />
+        <div class="mx-auto flex min-h-svh max-w-[1600px] flex-col px-5 md:px-10">
+          <Header lang={lang} basePath={basePath} photographerName={photographerName} />
+          <main class="flex-1">
+            <slot />
+          </main>
+          <Footer lang={lang} photographerName={photographerName} />
+        </div>
       </div>
-    </div>
-
-    <!-- Persistent transition overlay (outside the Barba container) -->
-    <div class="transition-overlay" aria-hidden="true">
-      {
-        [0, 1, 2, 3, 4].map((i) => (
-          <div
-            class="overlay-slat overlay-slat--back"
-            style={`left: calc(${i * 20}% - 1px); width: calc(20% + 2px);`}
-          />
-        ))
-      }
-      {
-        [0, 1, 2, 3, 4].map((i) => (
-          <div
-            class="overlay-slat overlay-slat--front"
-            style={`left: calc(${i * 20}% - 1px); width: calc(20% + 2px);`}
-          />
-        ))
-      }
-      <span class="transition-overlay__title"></span>
     </div>
 
     <!-- Custom cursor (JS enables it on fine pointers only) -->
