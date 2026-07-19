@@ -22,10 +22,23 @@
     "Songti TC", "Noto Serif TC", serif;
 }
 
+/* Dark mode: gallery-black, same accents. Toggled via data-theme (persisted). */
+:root[data-theme="dark"] {
+  --color-paper: #131009;
+  --color-ink: #f2efe8;
+  --color-muted: #8f887c;
+  --color-line: #2a2721;
+}
+
 html {
   background: var(--color-paper);
   color: var(--color-ink);
   scrollbar-color: var(--color-line) var(--color-paper);
+}
+
+html,
+body {
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
 body {
@@ -44,6 +57,25 @@ body {
   color: var(--cat, var(--color-coral));
 }
 
+/* ---------- theme toggle ---------- */
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-muted);
+  transition: color 0.3s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.theme-toggle:hover {
+  color: var(--color-ink);
+  transform: rotate(180deg);
+}
+
 /* ---------- page transitions ---------- */
 
 html.is-transitioning,
@@ -52,21 +84,37 @@ html.is-transitioning body {
   cursor: progress;
 }
 
-/* Colorful curtain — JS cycles its background through the accent palette. */
+/* Layered slats curtain — JS drives the choreography and accent color. */
 .transition-overlay {
   position: fixed;
   inset: 0;
   z-index: 60;
   display: grid;
   place-items: center;
-  background: var(--color-coral);
-  clip-path: inset(100% 0 0 0);
   visibility: hidden;
+  overflow: hidden;
+}
+
+.overlay-slat {
+  position: absolute;
+  top: -1%;
+  height: 102%;
+  transform: translateY(103%);
+}
+
+.overlay-slat--back {
+  background: var(--color-coral);
+}
+
+.overlay-slat--front {
+  background: #14110d;
 }
 
 .transition-overlay__title {
+  position: relative;
+  z-index: 2;
   overflow: hidden;
-  color: var(--color-paper);
+  color: #f2efe8;
   font-family: var(--font-serif);
   font-size: clamp(2.5rem, 8vw, 6.5rem);
   letter-spacing: 0.02em;
@@ -88,22 +136,103 @@ html.is-transitioning body {
   will-change: transform, width, height, top, left;
 }
 
-/* Category filter buttons: colored underline when active (JS toggles aria-pressed). */
-.filter-btn {
-  color: var(--color-muted);
-  transition: color 0.3s ease;
+/* ---------- custom cursor ---------- */
+
+html.has-cursor,
+html.has-cursor * {
+  cursor: none !important;
 }
 
-.filter-btn:hover {
-  color: var(--color-ink);
+.cursor {
+  display: none;
 }
 
-.filter-btn[aria-pressed="true"] {
-  color: var(--color-ink);
-  text-decoration: underline;
-  text-underline-offset: 6px;
-  text-decoration-thickness: 2px;
-  text-decoration-color: var(--cat, var(--color-coral));
+html.has-cursor .cursor {
+  display: block;
+}
+
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.cursor-dot__circle {
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+}
+
+.cursor-ring__circle {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+  border: 1.5px solid var(--color-ink);
+  border-radius: 50%;
+  opacity: 0.5;
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease,
+    background-color 0.4s ease,
+    border-color 0.4s ease;
+}
+
+.cursor-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-paper);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.25s ease 0.1s, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.05s;
+}
+
+/* Hovering any interactive element: ring wakes up. */
+.cursor.is-hover .cursor-ring__circle {
+  transform: scale(1.45);
+  opacity: 1;
+}
+
+/* Hovering a photo: ring becomes a filled accent badge with a label. */
+.cursor.is-view .cursor-ring__circle {
+  transform: scale(2.3);
+  opacity: 1;
+  background: var(--cursor-accent, var(--color-coral));
+  border-color: transparent;
+}
+
+.cursor.is-view .cursor-label {
+  opacity: 1;
+  transform: scale(0.42);
+}
+
+.cursor.is-view .cursor-dot__circle {
+  opacity: 0;
+}
+
+.cursor.is-down .cursor-dot__circle {
+  transform: scale(0.55);
+}
+
+.cursor.is-down .cursor-ring__circle {
+  transform: scale(0.9);
+}
+
+.cursor.is-down.is-view .cursor-ring__circle {
+  transform: scale(2);
+}
+
+.cursor.is-hidden .cursor-dot__circle,
+.cursor.is-hidden .cursor-ring__circle {
+  opacity: 0;
 }
 
 /* ---------- images ---------- */
@@ -138,6 +267,24 @@ html.is-transitioning body {
     transform: translate(-6px, -6px);
     box-shadow: 10px 10px 0 0 var(--cat, var(--color-coral));
   }
+}
+
+/* Category filter buttons: colored underline when active (JS toggles aria-pressed). */
+.filter-btn {
+  color: var(--color-muted);
+  transition: color 0.3s ease;
+}
+
+.filter-btn:hover {
+  color: var(--color-ink);
+}
+
+.filter-btn[aria-pressed="true"] {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--cat, var(--color-coral));
 }
 
 /* No JS or reduced motion: never hide content. */

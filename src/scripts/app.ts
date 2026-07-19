@@ -1,24 +1,21 @@
 /**
- * Page transitions (Barba.js + GSAP) and per-page animation, in the spirit of
- * the Codrops article "Creating Custom Page Transitions in Astro with
- * Barba.js and GSAP".
+ * Page transitions (Barba.js + GSAP), per-page animation, custom cursor and
+ * theme toggle — in the spirit of the Codrops article "Creating Custom Page
+ * Transitions in Astro with Barba.js and GSAP".
  *
  * Transition map:
  *  - gallery → photo (clicked card): shared-element FLIP — the clicked image
  *    flies and expands into the detail page hero.
  *  - photo → photo (prev/next): directional horizontal slide.
- *  - section change (Work <-> About, photo → elsewhere): colorful curtain
- *    with the destination page name, cycling through the accent palette.
+ *  - section change: layered slats curtain (accent wave + dark wave) carrying
+ *    the destination page name, while the old page sinks back.
  *  - same page, other language: quick scale-down + rise.
  *
- * prefers-reduced-motion: Barba is not initialised at all; the site works as
- * plain multi-page navigation with no animation.
+ * prefers-reduced-motion: Barba, reveals and the custom cursor are all
+ * disabled; the site works as plain multi-page navigation.
  */
 import barba from '@barba/core';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-gsap.registerPlugin(ScrollTrigger);
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ACCENTS = ['#ff4b24', '#2743ff', '#ffb400'];
@@ -34,7 +31,8 @@ function splitChars(el: HTMLElement): HTMLElement[] {
   for (const ch of text) {
     const span = document.createElement('span');
     span.className = 'char';
-    span.textContent = ch === ' ' ? ' ' : ch;
+    // Regular spaces collapse to zero width inside inline-block spans.
+    span.textContent = ch === ' ' ? ' ' : ch;
     span.setAttribute('aria-hidden', 'true');
     el.appendChild(span);
     chars.push(span);
@@ -53,24 +51,37 @@ function initImages(container: HTMLElement) {
   container.querySelectorAll<HTMLImageElement>('.photo-img').forEach(markLoaded);
 }
 
+/** Card reveals via IntersectionObserver: immune to transition timing. */
+let revealObserver: IntersectionObserver | null = null;
+
 function initReveals(container: HTMLElement) {
   if (reducedMotion) return;
 
   const cards = gsap.utils.toArray<HTMLElement>('.photo-card', container);
   if (cards.length) {
-    gsap.set(cards, { autoAlpha: 0, y: 64 });
-    ScrollTrigger.batch(cards, {
-      start: 'top 92%',
-      once: true,
-      onEnter: (batch) =>
-        gsap.to(batch, {
-          autoAlpha: 1,
-          y: 0,
-          duration: 1,
-          ease: 'power3.out',
-          stagger: 0.08,
-        }),
-    });
+    gsap.set(cards, { autoAlpha: 0, y: 48 });
+    let batch: HTMLElement[] = [];
+    let scheduled = false;
+    const flush = () => {
+      gsap.to(batch, { autoAlpha: 1, y: 0, duration: 0.9, ease: 'power3.out', stagger: 0.07 });
+      batch = [];
+      scheduled = false;
+    };
+    revealObserver = new IntersectionObserver(
+      (entries, io) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          batch.push(entry.target as HTMLElement);
+          io.unobserve(entry.target);
+        }
+        if (batch.length && !scheduled) {
+          scheduled = true;
+          requestAnimationFrame(flush);
+        }
+      },
+      { rootMargin: '0px 0px -6% 0px', threshold: 0.05 },
+    );
+    cards.forEach((card) => revealObserver!.observe(card));
   }
 
   // Skipped when a transition (FLIP) already choreographed the text itself.
@@ -131,7 +142,6 @@ function initFilter(container: HTMLElement) {
           { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.05 },
         );
       }
-      ScrollTrigger.refresh();
     });
   });
 }
@@ -151,10 +161,76 @@ function initPage(container: HTMLElement) {
   initReveals(container);
 }
 
+/* ---------------- theme toggle (event delegation, survives Barba swaps) ---------------- */
+
+document.addEventListener('click', (e) => {
+  if (!(e.target instanceof Element) || !e.target.closest('[data-theme-toggle]')) return;
+  const root = document.documentElement;
+  const dark = root.dataset.theme === 'dark';
+  if (dark) delete root.dataset.theme;
+  else root.dataset.theme = 'dark';
+  localStorage.setItem('theme', dark ? 'light' : 'dark');
+});
+
+/* ---------------- custom cursor ---------------- */
+
+function initCursor() {
+  const finePointer = window.matchMedia('(pointer: fine)').matches;
+  if (reducedMotion || !finePointer) return;
+
+  const cursor = document.querySelector<HTMLElement>('.cursor');
+  const dot = cursor?.querySelector<HTMLElement>('.cursor-dot');
+  const ring = cursor?.querySelector<HTMLElement>('.cursor-ring');
+  const label = cursor?.querySelector<HTMLElement>('.cursor-label');
+  if (!cursor || !dot || !ring || !label) return;
+
+  document.documentElement.classList.add('has-cursor');
+  cursor.classList.add('is-hidden');
+
+  const dotX = gsap.quickTo(dot, 'x', { duration: 0.12, ease: 'power3' });
+  const dotY = gsap.quickTo(dot, 'y', { duration: 0.12, ease: 'power3' });
+  const ringX = gsap.quickTo(ring, 'x', { duration: 0.45, ease: 'power3' });
+  const ringY = gsap.quickTo(ring, 'y', { duration: 0.45, ease: 'power3' });
+
+  window.addEventListener('pointermove', (e) => {
+    cursor.classList.remove('is-hidden');
+    dotX(e.clientX);
+    dotY(e.clientY);
+    ringX(e.clientX);
+    ringY(e.clientY);
+  });
+
+  const setState = (target: Element | null) => {
+    const labelled = target?.closest<HTMLElement>('[data-cursor-label]');
+    const interactive = target?.closest('a, button, [data-cursor-label]');
+    cursor.classList.toggle('is-view', !!labelled);
+    cursor.classList.toggle('is-hover', !!interactive && !labelled);
+    if (labelled) {
+      label.textContent = labelled.dataset.cursorLabel ?? '';
+      const card = labelled.closest<HTMLElement>('.photo-card');
+      const accent = card ? getComputedStyle(card).getPropertyValue('--cat') : '';
+      cursor.style.setProperty('--cursor-accent', accent.trim() || ACCENTS[0]);
+    }
+  };
+
+  document.addEventListener('pointerover', (e) => setState(e.target as Element));
+  document.addEventListener('pointerout', (e) => setState(e.relatedTarget as Element | null));
+  document.addEventListener('pointerdown', () => cursor.classList.add('is-down'));
+  document.addEventListener('pointerup', () => cursor.classList.remove('is-down'));
+  document.documentElement.addEventListener('mouseleave', () => cursor.classList.add('is-hidden'));
+  document.documentElement.addEventListener('mouseenter', () => cursor.classList.remove('is-hidden'));
+
+  return cursor;
+}
+
+const cursorEl = initCursor();
+
 /* ---------------- transitions ---------------- */
 
 const overlay = document.querySelector<HTMLElement>('.transition-overlay')!;
 const overlayTitle = overlay.querySelector<HTMLElement>('.transition-overlay__title')!;
+const backSlats = overlay.querySelectorAll<HTMLElement>('.overlay-slat--back');
+const frontSlats = overlay.querySelectorAll<HTMLElement>('.overlay-slat--front');
 let accentIndex = 0;
 
 function nextAccent(): string {
@@ -162,28 +238,32 @@ function nextAccent(): string {
   return ACCENTS[accentIndex];
 }
 
-/** Curtain up over the old page, destination title types in. */
+/** Accent wave, then dark wave, then the destination title types in. */
 function overlayIn(title: string): gsap.core.Timeline {
   overlayTitle.textContent = title;
   const chars = splitChars(overlayTitle);
   const tl = gsap.timeline();
-  tl.set(overlay, {
-    visibility: 'visible',
-    clipPath: 'inset(100% 0 0 0)',
-    backgroundColor: nextAccent(),
-  })
-    .to(overlay, { clipPath: 'inset(0% 0 0 0)', duration: 0.65, ease: 'power4.inOut' })
-    .from(chars, { yPercent: 120, duration: 0.7, ease: 'power4.out', stagger: 0.04 }, '-=0.25');
+  tl.set(overlay, { visibility: 'visible' })
+    .set(backSlats, { backgroundColor: nextAccent(), yPercent: 103 })
+    .set(frontSlats, { yPercent: 103 })
+    .to(backSlats, { yPercent: 0, duration: 0.55, ease: 'power4.inOut', stagger: 0.055 })
+    .to(frontSlats, { yPercent: 0, duration: 0.55, ease: 'power4.inOut', stagger: 0.055 }, '-=0.42')
+    .from(
+      chars,
+      { yPercent: 120, skewY: 5, duration: 0.65, ease: 'power4.out', stagger: 0.03 },
+      '-=0.2',
+    );
   return tl;
 }
 
-/** Curtain continues upward, revealing the new page underneath. */
+/** Title exits, slats continue upward in two staggered waves. */
 function overlayOut(): gsap.core.Timeline {
   const chars = overlayTitle.querySelectorAll('.char');
   const tl = gsap.timeline();
-  tl.to(chars, { yPercent: -120, duration: 0.5, ease: 'power4.in', stagger: 0.02 })
-    .to(overlay, { clipPath: 'inset(0 0 100% 0)', duration: 0.65, ease: 'power4.inOut' }, '-=0.15')
-    .set(overlay, { visibility: 'hidden', clipPath: 'inset(100% 0 0 0)' });
+  tl.to(chars, { yPercent: -120, duration: 0.45, ease: 'power4.in', stagger: 0.02 })
+    .to(frontSlats, { yPercent: -103, duration: 0.6, ease: 'power4.inOut', stagger: 0.05 }, '-=0.1')
+    .to(backSlats, { yPercent: -103, duration: 0.6, ease: 'power4.inOut', stagger: 0.05 }, '-=0.48')
+    .set(overlay, { visibility: 'hidden' });
   return tl;
 }
 
@@ -278,19 +358,25 @@ function initBarba() {
         },
       },
       {
-        // Section change: colorful curtain with the destination page name.
-        name: 'overlay-title',
+        // Section change: layered slats curtain with the destination name.
+        name: 'slats-curtain',
         custom: ({ current, next, trigger }) =>
           current.namespace !== next.namespace &&
           !(next.namespace === 'photo' && photoLinkFrom(trigger) !== null),
-        async leave({ next }) {
+        async leave({ current, next }) {
           const title = next.container?.dataset.pageTitle ?? '';
+          gsap.to(current.container, { scale: 0.965, autoAlpha: 0.55, duration: 0.7, ease: 'power3.inOut' });
           await overlayIn(title);
         },
         enter() {
           window.scrollTo(0, 0);
         },
-        async after() {
+        async after({ next }) {
+          gsap.fromTo(
+            next.container,
+            { scale: 1.02 },
+            { scale: 1, duration: 0.9, ease: 'power3.out', clearProps: 'transform' },
+          );
           await overlayOut();
         },
       },
@@ -323,7 +409,8 @@ function initBarba() {
   });
 
   barba.hooks.beforeLeave(() => {
-    ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
+    revealObserver?.disconnect();
+    revealObserver = null;
   });
 
   barba.hooks.afterEnter((data) => {
@@ -339,11 +426,12 @@ function initBarba() {
       .forEach((el) => document.head.appendChild(el.cloneNode(true)));
 
     initPage(data.next.container as HTMLElement);
-    ScrollTrigger.refresh();
   });
 
   barba.hooks.after(() => {
     document.documentElement.classList.remove('is-transitioning');
+    // The hovered element is gone after a swap — reset cursor state.
+    cursorEl?.classList.remove('is-view', 'is-hover');
   });
 }
 

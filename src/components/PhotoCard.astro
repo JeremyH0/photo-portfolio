@@ -1,5 +1,5 @@
 ---
-import { l, type LocaleCode } from '../i18n/locales';
+import { l, ui, type LocaleCode } from '../i18n/locales';
 import type { Photo } from '../lib/queries';
 import { srcsetFor, urlFor } from '../lib/image';
 
@@ -23,7 +23,12 @@ const caption = l(photo.caption, lang);
   data-category={photo.category?.slug}
   style={`--cat: ${accent}`}
 >
-  <a href={`/${lang}/photo/${photo._id}/`} data-photo-link={photo._id} aria-label={title}>
+  <a
+    href={`/${lang}/photo/${photo._id}/`}
+    data-photo-link={photo._id}
+    data-cursor-label={ui[lang].view}
+    aria-label={title}
+  >
     <div
       class="photo-media relative overflow-hidden rounded-[2px]"
       style={`aspect-ratio: ${photo.image.width} / ${photo.image.height}; background-image: url(${photo.image.lqip})`}

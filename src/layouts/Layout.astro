@@ -41,7 +41,16 @@ const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
       ))
     }
     <link rel="alternate" hreflang="x-default" href={new URL(`/en${basePath === '/' ? '/' : basePath}`, Astro.site)} />
-    <script is:inline>document.documentElement.classList.remove('no-js');</script>
+    <script is:inline>
+      document.documentElement.classList.remove('no-js');
+      // Theme before first paint: saved choice, else system preference.
+      (function () {
+        var saved = localStorage.getItem('theme');
+        if (saved === 'dark' || (!saved && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.dataset.theme = 'dark';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div data-barba="wrapper">
@@ -61,7 +70,29 @@ const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
 
     <!-- Persistent transition overlay (outside the Barba container) -->
     <div class="transition-overlay" aria-hidden="true">
+      {
+        [0, 1, 2, 3, 4].map((i) => (
+          <div
+            class="overlay-slat overlay-slat--back"
+            style={`left: calc(${i * 20}% - 1px); width: calc(20% + 2px);`}
+          />
+        ))
+      }
+      {
+        [0, 1, 2, 3, 4].map((i) => (
+          <div
+            class="overlay-slat overlay-slat--front"
+            style={`left: calc(${i * 20}% - 1px); width: calc(20% + 2px);`}
+          />
+        ))
+      }
       <span class="transition-overlay__title"></span>
+    </div>
+
+    <!-- Custom cursor (JS enables it on fine pointers only) -->
+    <div class="cursor" aria-hidden="true">
+      <div class="cursor-ring"><div class="cursor-ring__circle"><span class="cursor-label"></span></div></div>
+      <div class="cursor-dot"><div class="cursor-dot__circle"></div></div>
     </div>
 
     <script>

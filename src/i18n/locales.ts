@@ -41,6 +41,7 @@ type UIStrings = {
   back: string;
   prev: string;
   next: string;
+  view: string;
 };
 
 export const ui: Record<LocaleCode, UIStrings> = {
@@ -55,6 +56,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     back: 'Back to gallery',
     prev: 'Previous',
     next: 'Next',
+    view: 'View',
   },
   ja: {
     work: '作品',
@@ -67,6 +69,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     back: 'ギャラリーへ戻る',
     prev: '前へ',
     next: '次へ',
+    view: '見る',
   },
   zh: {
     work: '作品',
@@ -79,6 +82,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     back: '返回作品集',
     prev: '上一张',
     next: '下一张',
+    view: '查看',
   },
   'zh-tw': {
     work: '作品',
@@ -91,6 +95,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     back: '返回作品集',
     prev: '上一張',
     next: '下一張',
+    view: '查看',
   },
 };
 
