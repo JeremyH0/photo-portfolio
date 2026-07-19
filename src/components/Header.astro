@@ -1,0 +1,57 @@
+---
+import { locales, ui, type LocaleCode } from '../i18n/locales';
+
+interface Props {
+  lang: LocaleCode;
+  basePath: string;
+  photographerName: string;
+}
+
+const { lang, basePath, photographerName } = Astro.props;
+const t = ui[lang];
+
+const nav = [
+  { href: `/${lang}/`, label: t.work, active: basePath === '/' },
+  { href: `/${lang}/about/`, label: t.about, active: basePath.startsWith('/about') },
+];
+---
+
+<header class="flex items-center justify-between py-6 text-[0.72rem] uppercase tracking-[0.22em] md:py-8">
+  <a href={`/${lang}/`} class="font-medium normal-case tracking-[0.08em] text-paper">
+    {photographerName}
+  </a>
+
+  <div class="flex items-center gap-8 md:gap-12">
+    <nav class="flex gap-6 md:gap-8" aria-label="Main">
+      {
+        nav.map((item) => (
+          <a
+            href={item.href}
+            class:list={['transition-colors duration-300 hover:text-paper', item.active ? 'text-paper' : 'text-muted']}
+            aria-current={item.active ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <nav class="flex gap-3 border-l border-line pl-6 md:pl-8" aria-label="Language">
+      {
+        locales.map((loc) => (
+          <a
+            href={`/${loc.code}${basePath === '/' ? '/' : basePath}`}
+            class:list={[
+              'transition-colors duration-300 hover:text-paper',
+              loc.code === lang ? 'text-paper underline underline-offset-4' : 'text-muted',
+            ]}
+            aria-current={loc.code === lang ? 'true' : undefined}
+            lang={loc.htmlLang}
+          >
+            {loc.label}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</header>

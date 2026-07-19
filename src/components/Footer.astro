@@ -1,0 +1,18 @@
+---
+import { ui, type LocaleCode } from '../i18n/locales';
+
+interface Props {
+  lang: LocaleCode;
+  photographerName: string;
+}
+
+const { lang, photographerName } = Astro.props;
+const year = new Date().getFullYear();
+---
+
+<footer class="mt-24 flex items-center justify-between border-t border-line py-8 text-[0.7rem] uppercase tracking-[0.2em] text-muted md:mt-32">
+  <p>© {year} {photographerName}</p>
+  <a href="#top" class="transition-colors duration-300 hover:text-paper" data-back-to-top>
+    {ui[lang].backToTop}
+  </a>
+</footer>

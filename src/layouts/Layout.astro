@@ -1,0 +1,71 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { locales, ui, type LocaleCode } from '../i18n/locales';
+
+interface Props {
+  lang: LocaleCode;
+  namespace: 'gallery' | 'about';
+  /** Localized section name shown by the overlay transition. */
+  pageTitle: string;
+  title: string;
+  description?: string;
+  photographerName: string;
+}
+
+const { lang, namespace, pageTitle, title, description, photographerName } = Astro.props;
+
+const htmlLang = locales.find((loc) => loc.code === lang)?.htmlLang ?? 'en';
+// Path without the locale prefix, for hreflang alternates + the language switcher.
+const basePath = Astro.url.pathname.replace(/^\/(en|ja|zh)(?=\/|$)/, '') || '/';
+---
+
+<html lang={htmlLang} class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <meta name="description" content={description ?? ui[lang].metaDescription} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://cdn.sanity.io" crossorigin />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    {
+      locales.map((loc) => (
+        <link
+          rel="alternate"
+          hreflang={loc.htmlLang}
+          href={new URL(`/${loc.code}${basePath === '/' ? '/' : basePath}`, Astro.site)}
+        />
+      ))
+    }
+    <link rel="alternate" hreflang="x-default" href={new URL(`/en${basePath === '/' ? '/' : basePath}`, Astro.site)} />
+    <script is:inline>document.documentElement.classList.remove('no-js');</script>
+  </head>
+  <body>
+    <div data-barba="wrapper">
+      <div
+        data-barba="container"
+        data-barba-namespace={namespace}
+        data-page-title={pageTitle}
+        class="mx-auto flex min-h-svh max-w-[1600px] flex-col px-5 md:px-10"
+      >
+        <Header lang={lang} basePath={basePath} photographerName={photographerName} />
+        <main class="flex-1">
+          <slot />
+        </main>
+        <Footer lang={lang} photographerName={photographerName} />
+      </div>
+    </div>
+
+    <!-- Persistent transition overlay (outside the Barba container) -->
+    <div class="transition-overlay" aria-hidden="true">
+      <span class="transition-overlay__title"></span>
+    </div>
+
+    <script>
+      import '../scripts/app';
+    </script>
+  </body>
+</html>

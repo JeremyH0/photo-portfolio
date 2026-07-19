@@ -1,0 +1,2 @@
+# Cloudflare Pages: real 302 for the root (Astro's meta-refresh page is the fallback elsewhere)
+/ /en/ 302

@@ -1,1 +1,97 @@
 @import "tailwindcss";
+
+@theme {
+  /* Warm gallery-black palette — photos provide the color. */
+  --color-ink: #0f0e0c;
+  --color-ink-soft: #171613;
+  --color-paper: #f2efe8;
+  --color-muted: #8f8b80;
+  --color-line: #2a2823;
+
+  --font-sans:
+    "Helvetica Neue", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP",
+    "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-serif:
+    "Iowan Old Style", Georgia, "Times New Roman",
+    "Hiragino Mincho ProN", "Noto Serif JP", "Songti SC", "Noto Serif SC", serif;
+}
+
+html {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  scrollbar-color: var(--color-line) var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100svh;
+}
+
+::selection {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* ---------- page transitions ---------- */
+
+/* Block clicks while Barba is animating (Codrops pattern). */
+html.is-transitioning,
+html.is-transitioning body {
+  pointer-events: none;
+  cursor: progress;
+}
+
+.transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--color-ink-soft);
+  clip-path: inset(100% 0 0 0);
+  visibility: hidden;
+}
+
+.transition-overlay__title {
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: clamp(2.5rem, 8vw, 6.5rem);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.transition-overlay__title .char {
+  display: inline-block;
+  will-change: transform;
+}
+
+/* ---------- images ---------- */
+
+/* LQIP sits behind; the real image fades in on load (JS adds .is-loaded). */
+.photo-media {
+  background-size: cover;
+  background-position: center;
+}
+
+.photo-img {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.photo-img.is-loaded {
+  opacity: 1;
+}
+
+/* No JS or reduced motion: never hide content. */
+@media (prefers-reduced-motion: reduce) {
+  .photo-img {
+    opacity: 1 !important;
+    transition: none;
+  }
+}
+
+html.no-js .photo-img {
+  opacity: 1;
+}

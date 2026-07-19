@@ -1,0 +1,87 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PhotoCard from '../../components/PhotoCard.astro';
+import { getLocalePaths, l, ui, type LocaleCode } from '../../i18n/locales';
+import { getCategories, getPhotos, getSiteSettings } from '../../lib/queries';
+
+export function getStaticPaths() {
+  return getLocalePaths();
+}
+
+const lang = Astro.params.lang as LocaleCode;
+const t = ui[lang];
+
+const [photos, categories, settings] = await Promise.all([
+  getPhotos(),
+  getCategories(),
+  getSiteSettings(),
+]);
+
+// Editorial 12-column rhythm: wide / narrow-offset pairs, repeating every 6.
+const pattern = [
+  { span: 'md:col-span-7 md:col-start-1', sizes: '(min-width: 768px) 55vw, 100vw' },
+  { span: 'md:col-span-4 md:col-start-9 md:mt-32', sizes: '(min-width: 768px) 32vw, 100vw' },
+  { span: 'md:col-span-5 md:col-start-2 md:-mt-10', sizes: '(min-width: 768px) 40vw, 100vw' },
+  { span: 'md:col-span-6 md:col-start-7 md:mt-24', sizes: '(min-width: 768px) 48vw, 100vw' },
+  { span: 'md:col-span-8 md:col-start-3 md:mt-16', sizes: '(min-width: 768px) 64vw, 100vw' },
+  { span: 'md:col-span-4 md:col-start-1 md:mt-20', sizes: '(min-width: 768px) 32vw, 100vw' },
+];
+---
+
+<Layout
+  lang={lang}
+  namespace="gallery"
+  pageTitle={t.work}
+  title={`${settings.photographerName} — ${t.work}`}
+  photographerName={settings.photographerName}
+>
+  <!-- Hero -->
+  <section class="flex min-h-[52svh] flex-col justify-end pb-16 md:pb-24" id="top">
+    <p class="hero-line mb-5 text-[0.72rem] uppercase tracking-[0.24em] text-muted">
+      {t.tagline}
+    </p>
+    <h1
+      class="hero-title font-serif text-[clamp(3rem,11vw,9.5rem)] leading-[0.98] tracking-[-0.01em]"
+      data-split
+    >
+      {settings.photographerName}
+    </h1>
+  </section>
+
+  <!-- Category filter -->
+  <nav
+    class="filter-bar mb-14 flex flex-wrap gap-x-7 gap-y-3 border-t border-line pt-6 text-[0.72rem] uppercase tracking-[0.2em]"
+    aria-label="Categories"
+  >
+    <button type="button" class="filter-btn text-paper transition-colors duration-300" data-filter="all" aria-pressed="true">
+      {t.all}
+    </button>
+    {
+      categories.map((cat) => (
+        <button
+          type="button"
+          class="filter-btn text-muted transition-colors duration-300 hover:text-paper"
+          data-filter={cat.slug}
+          aria-pressed="false"
+        >
+          {l(cat.title, lang)}
+        </button>
+      ))
+    }
+  </nav>
+
+  <!-- Photo grid -->
+  <section class="photo-grid grid grid-cols-1 gap-y-16 md:grid-cols-12 md:gap-x-8 md:gap-y-8">
+    {
+      photos.map((photo, i) => (
+        <PhotoCard
+          photo={photo}
+          lang={lang}
+          class={pattern[i % pattern.length].span}
+          sizes={pattern[i % pattern.length].sizes}
+          eager={i < 2}
+        />
+      ))
+    }
+  </section>
+</Layout>

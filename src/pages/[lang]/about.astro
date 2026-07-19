@@ -1,0 +1,67 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getLocalePaths, l, ui, type LocaleCode } from '../../i18n/locales';
+import { getSiteSettings } from '../../lib/queries';
+
+export function getStaticPaths() {
+  return getLocalePaths();
+}
+
+const lang = Astro.params.lang as LocaleCode;
+const t = ui[lang];
+const settings = await getSiteSettings();
+const bio = l(settings.bio, lang);
+---
+
+<Layout
+  lang={lang}
+  namespace="about"
+  pageTitle={t.about}
+  title={`${settings.photographerName} — ${t.about}`}
+  photographerName={settings.photographerName}
+>
+  <section class="flex min-h-[70svh] flex-col justify-center py-20 md:py-28" id="top">
+    <p class="about-reveal mb-8 text-[0.72rem] uppercase tracking-[0.24em] text-muted">
+      {t.about}
+    </p>
+
+    {
+      bio && (
+        <p class="about-reveal max-w-3xl font-serif text-[clamp(1.5rem,3.4vw,2.6rem)] leading-[1.35]">
+          {bio}
+        </p>
+      )
+    }
+
+    <div class="about-reveal mt-16 flex flex-wrap items-baseline gap-x-12 gap-y-6 md:mt-24">
+      {
+        settings.contactEmail && (
+          <a
+            href={`mailto:${settings.contactEmail}`}
+            class="group text-[0.78rem] uppercase tracking-[0.22em]"
+          >
+            <span class="mr-4 text-muted">{t.contact}</span>
+            <span class="border-b border-paper pb-1 transition-colors duration-300 group-hover:border-muted group-hover:text-muted">
+              {settings.contactEmail}
+            </span>
+          </a>
+        )
+      }
+      {
+        settings.socialLinks?.map(
+          (link) =>
+            link.url && (
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-[0.78rem] uppercase tracking-[0.22em] text-muted transition-colors duration-300 hover:text-paper"
+              >
+                {link.label ?? link.url}
+              </a>
+            ),
+        )
+      }
+    </div>
+  </section>
+</Layout>
