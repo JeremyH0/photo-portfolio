@@ -2,11 +2,11 @@
 import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { locales, ui, type LocaleCode } from '../i18n/locales';
+import { localePathPattern, locales, ui, type LocaleCode } from '../i18n/locales';
 
 interface Props {
   lang: LocaleCode;
-  namespace: 'gallery' | 'about';
+  namespace: 'gallery' | 'about' | 'photo';
   /** Localized section name shown by the overlay transition. */
   pageTitle: string;
   title: string;
@@ -18,7 +18,7 @@ const { lang, namespace, pageTitle, title, description, photographerName } = Ast
 
 const htmlLang = locales.find((loc) => loc.code === lang)?.htmlLang ?? 'en';
 // Path without the locale prefix, for hreflang alternates + the language switcher.
-const basePath = Astro.url.pathname.replace(/^\/(en|ja|zh)(?=\/|$)/, '') || '/';
+const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
 ---
 
 <html lang={htmlLang} class="no-js">

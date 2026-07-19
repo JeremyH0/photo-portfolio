@@ -9,7 +9,7 @@ export default defineConfig({
   site: 'https://photo-portfolio-d1s.pages.dev',
   i18n: {
     defaultLocale: 'en',
-    locales: ['en', 'ja', 'zh'],
+    locales: ['en', 'ja', 'zh', 'zh-tw'],
     routing: {
       prefixDefaultLocale: true,
     },

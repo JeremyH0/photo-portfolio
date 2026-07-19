@@ -1,11 +1,15 @@
 /**
- * Page transitions (Barba.js + GSAP) and per-page animation.
+ * Page transitions (Barba.js + GSAP) and per-page animation, in the spirit of
+ * the Codrops article "Creating Custom Page Transitions in Astro with
+ * Barba.js and GSAP".
  *
- * Two transitions, in the spirit of the Codrops article
- * "Creating Custom Page Transitions in Astro with Barba.js and GSAP":
- *  - "overlay-title": switching sections (Work <-> About) lifts a curtain
- *    overlay showing the destination page name in the destination language.
- *  - "soft": same section, different language — quick scale-down + reveal.
+ * Transition map:
+ *  - gallery → photo (clicked card): shared-element FLIP — the clicked image
+ *    flies and expands into the detail page hero.
+ *  - photo → photo (prev/next): directional horizontal slide.
+ *  - section change (Work <-> About, photo → elsewhere): colorful curtain
+ *    with the destination page name, cycling through the accent palette.
+ *  - same page, other language: quick scale-down + rise.
  *
  * prefers-reduced-motion: Barba is not initialised at all; the site works as
  * plain multi-page navigation with no animation.
@@ -17,6 +21,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 gsap.registerPlugin(ScrollTrigger);
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ACCENTS = ['#ff4b24', '#2743ff', '#ffb400'];
 
 /* ---------------- helpers ---------------- */
 
@@ -29,7 +34,7 @@ function splitChars(el: HTMLElement): HTMLElement[] {
   for (const ch of text) {
     const span = document.createElement('span');
     span.className = 'char';
-    span.textContent = ch === ' ' ? ' ' : ch;
+    span.textContent = ch === ' ' ? ' ' : ch;
     span.setAttribute('aria-hidden', 'true');
     el.appendChild(span);
     chars.push(span);
@@ -68,9 +73,13 @@ function initReveals(container: HTMLElement) {
     });
   }
 
-  const aboutBlocks = gsap.utils.toArray<HTMLElement>('.about-reveal', container);
-  if (aboutBlocks.length) {
-    gsap.from(aboutBlocks, {
+  // Skipped when a transition (FLIP) already choreographed the text itself.
+  const blocks =
+    container.dataset.skipTextReveal === '1'
+      ? []
+      : gsap.utils.toArray<HTMLElement>('.about-reveal, .detail-reveal', container);
+  if (blocks.length) {
+    gsap.from(blocks, {
       autoAlpha: 0,
       y: 40,
       duration: 1,
@@ -86,7 +95,7 @@ function initHero(container: HTMLElement) {
   const title = container.querySelector<HTMLElement>('[data-split]');
   if (!title) return;
   const chars = splitChars(title);
-  gsap.set(title, { overflow: 'hidden' });
+  gsap.set(title, { display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom' });
   gsap.from(chars, {
     yPercent: 110,
     duration: 1.1,
@@ -105,12 +114,7 @@ function initFilter(container: HTMLElement) {
   buttons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const filter = btn.dataset.filter;
-      buttons.forEach((b) => {
-        const active = b === btn;
-        b.setAttribute('aria-pressed', String(active));
-        b.classList.toggle('text-paper', active);
-        b.classList.toggle('text-muted', !active);
-      });
+      buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
 
       const cards = container.querySelectorAll<HTMLElement>('.photo-card');
       const visible: HTMLElement[] = [];
@@ -151,13 +155,23 @@ function initPage(container: HTMLElement) {
 
 const overlay = document.querySelector<HTMLElement>('.transition-overlay')!;
 const overlayTitle = overlay.querySelector<HTMLElement>('.transition-overlay__title')!;
+let accentIndex = 0;
+
+function nextAccent(): string {
+  accentIndex = (accentIndex + 1) % ACCENTS.length;
+  return ACCENTS[accentIndex];
+}
 
 /** Curtain up over the old page, destination title types in. */
 function overlayIn(title: string): gsap.core.Timeline {
   overlayTitle.textContent = title;
   const chars = splitChars(overlayTitle);
   const tl = gsap.timeline();
-  tl.set(overlay, { visibility: 'visible', clipPath: 'inset(100% 0 0 0)' })
+  tl.set(overlay, {
+    visibility: 'visible',
+    clipPath: 'inset(100% 0 0 0)',
+    backgroundColor: nextAccent(),
+  })
     .to(overlay, { clipPath: 'inset(0% 0 0 0)', duration: 0.65, ease: 'power4.inOut' })
     .from(chars, { yPercent: 120, duration: 0.7, ease: 'power4.out', stagger: 0.04 }, '-=0.25');
   return tl;
@@ -173,15 +187,102 @@ function overlayOut(): gsap.core.Timeline {
   return tl;
 }
 
+function photoLinkFrom(trigger: unknown): HTMLElement | null {
+  return trigger instanceof HTMLElement ? trigger.closest('[data-photo-link]') : null;
+}
+
+/** FLIP state shared between leave and enter of the gallery → photo transition. */
+let flipClone: HTMLImageElement | null = null;
+
 function initBarba() {
   barba.init({
     prevent: ({ el }) => el.hasAttribute('data-no-barba'),
     transitions: [
       {
-        // Section change: Work <-> About
-        name: 'overlay-title',
+        // Clicked photo card: the image itself flies into the detail page.
+        name: 'flip-photo',
+        custom: ({ next, trigger }) =>
+          next.namespace === 'photo' && photoLinkFrom(trigger) !== null,
+        async leave({ current, trigger }) {
+          const link = photoLinkFrom(trigger)!;
+          const img = link.querySelector('img')!;
+          const rect = img.getBoundingClientRect();
+
+          flipClone = img.cloneNode(true) as HTMLImageElement;
+          flipClone.className = 'flip-clone';
+          Object.assign(flipClone.style, {
+            top: `${rect.top}px`,
+            left: `${rect.left}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
+          });
+          document.body.appendChild(flipClone);
+          (link.closest('.photo-card') as HTMLElement).style.opacity = '0';
+
+          await gsap.to(current.container, { autoAlpha: 0, duration: 0.35, ease: 'power2.in' });
+        },
+        async enter({ next }) {
+          window.scrollTo(0, 0);
+          const hero = next.container.querySelector<HTMLImageElement>('[data-detail-hero] img')!;
+          hero.style.visibility = 'hidden';
+
+          const text = next.container.querySelectorAll('.detail-reveal, [aria-label="Photos"]');
+          gsap.set(text, { autoAlpha: 0 });
+
+          const target = hero.getBoundingClientRect();
+          if (flipClone) {
+            await gsap.to(flipClone, {
+              top: target.top,
+              left: target.left,
+              width: target.width,
+              height: target.height,
+              duration: 0.8,
+              ease: 'power4.inOut',
+            });
+          }
+          hero.style.visibility = '';
+          markLoaded(hero);
+          (next.container as HTMLElement).dataset.skipTextReveal = '1';
+          gsap.to(text, { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.08 });
+          // Keep the clone painted briefly so the hero can render beneath it.
+          const clone = flipClone;
+          flipClone = null;
+          if (clone) gsap.to(clone, { autoAlpha: 0, duration: 0.25, delay: 0.15, onComplete: () => clone.remove() });
+        },
+      },
+      {
+        // Prev/next between photos: directional slide.
+        name: 'photo-slide',
         custom: ({ current, next }) =>
-          !!next.container && current.namespace !== next.namespace,
+          current.namespace === 'photo' && next.namespace === 'photo',
+        async leave({ current, trigger }) {
+          const dir =
+            trigger instanceof HTMLElement && trigger.closest('[data-nav-dir="prev"]') ? -1 : 1;
+          (current.container as HTMLElement).dataset.slideDir = String(dir);
+          await gsap.to(current.container, {
+            xPercent: -6 * dir,
+            autoAlpha: 0,
+            duration: 0.4,
+            ease: 'power2.in',
+          });
+        },
+        enter({ current, next }) {
+          window.scrollTo(0, 0);
+          const dir = Number((current.container as HTMLElement).dataset.slideDir ?? 1);
+          return gsap.from(next.container, {
+            xPercent: 6 * dir,
+            autoAlpha: 0,
+            duration: 0.55,
+            ease: 'power3.out',
+          });
+        },
+      },
+      {
+        // Section change: colorful curtain with the destination page name.
+        name: 'overlay-title',
+        custom: ({ current, next, trigger }) =>
+          current.namespace !== next.namespace &&
+          !(next.namespace === 'photo' && photoLinkFrom(trigger) !== null),
         async leave({ next }) {
           const title = next.container?.dataset.pageTitle ?? '';
           await overlayIn(title);
@@ -251,3 +352,10 @@ function initBarba() {
 const firstContainer = document.querySelector<HTMLElement>('[data-barba="container"]');
 if (firstContainer) initPage(firstContainer);
 if (!reducedMotion) initBarba();
+
+// Arrow keys navigate between photos on detail pages.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const dir = e.key === 'ArrowLeft' ? 'prev' : 'next';
+  document.querySelector<HTMLAnchorElement>(`[data-nav-dir="${dir}"]`)?.click();
+});

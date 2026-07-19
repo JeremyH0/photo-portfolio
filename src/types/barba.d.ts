@@ -9,6 +9,7 @@ declare module '@barba/core' {
   export interface TransitionData {
     current: BarbaPageInfo;
     next: BarbaPageInfo;
+    trigger: HTMLElement | 'barba' | 'back' | 'forward';
   }
 
   export interface BarbaTransition {

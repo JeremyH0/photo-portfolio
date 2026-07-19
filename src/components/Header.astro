@@ -17,7 +17,7 @@ const nav = [
 ---
 
 <header class="flex items-center justify-between py-6 text-[0.72rem] uppercase tracking-[0.22em] md:py-8">
-  <a href={`/${lang}/`} class="font-medium normal-case tracking-[0.08em] text-paper">
+  <a href={`/${lang}/`} class="font-medium normal-case tracking-[0.08em] text-ink">
     {photographerName}
   </a>
 
@@ -27,7 +27,7 @@ const nav = [
         nav.map((item) => (
           <a
             href={item.href}
-            class:list={['transition-colors duration-300 hover:text-paper', item.active ? 'text-paper' : 'text-muted']}
+            class:list={['transition-colors duration-300 hover:text-ink', item.active ? 'text-ink' : 'text-muted']}
             aria-current={item.active ? 'page' : undefined}
           >
             {item.label}
@@ -42,8 +42,8 @@ const nav = [
           <a
             href={`/${loc.code}${basePath === '/' ? '/' : basePath}`}
             class:list={[
-              'transition-colors duration-300 hover:text-paper',
-              loc.code === lang ? 'text-paper underline underline-offset-4' : 'text-muted',
+              'transition-colors duration-300 hover:text-ink',
+              loc.code === lang ? 'text-ink underline underline-offset-4 decoration-coral decoration-2' : 'text-muted',
             ]}
             aria-current={loc.code === lang ? 'true' : undefined}
             lang={loc.htmlLang}

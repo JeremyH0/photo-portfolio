@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  /* Warm gallery-black palette — photos provide the color. */
-  --color-ink: #0f0e0c;
-  --color-ink-soft: #171613;
-  --color-paper: #f2efe8;
-  --color-muted: #8f8b80;
-  --color-line: #2a2823;
+  /* Shiny editorial palette: warm cream paper, punchy accents. */
+  --color-paper: #fdf8f0;
+  --color-ink: #191410;
+  --color-muted: #97897a;
+  --color-line: #e9decc;
+
+  --color-coral: #ff4b24;
+  --color-cobalt: #2743ff;
+  --color-sun: #ffb400;
 
   --font-sans:
     "Helvetica Neue", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP",
-    "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    "PingFang SC", "Noto Sans SC", "PingFang TC", "Noto Sans TC",
+    "Microsoft YaHei", sans-serif;
   --font-serif:
     "Iowan Old Style", Georgia, "Times New Roman",
-    "Hiragino Mincho ProN", "Noto Serif JP", "Songti SC", "Noto Serif SC", serif;
+    "Hiragino Mincho ProN", "Noto Serif JP", "Songti SC", "Noto Serif SC",
+    "Songti TC", "Noto Serif TC", serif;
 }
 
 html {
-  background: var(--color-ink);
-  color: var(--color-paper);
-  scrollbar-color: var(--color-line) var(--color-ink);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  scrollbar-color: var(--color-line) var(--color-paper);
 }
 
 body {
@@ -30,36 +35,42 @@ body {
 }
 
 ::selection {
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--color-coral);
+  color: var(--color-paper);
+}
+
+/* Category accent colors, cycled by index (set inline as --cat). */
+.cat-accent {
+  color: var(--cat, var(--color-coral));
 }
 
 /* ---------- page transitions ---------- */
 
-/* Block clicks while Barba is animating (Codrops pattern). */
 html.is-transitioning,
 html.is-transitioning body {
   pointer-events: none;
   cursor: progress;
 }
 
+/* Colorful curtain — JS cycles its background through the accent palette. */
 .transition-overlay {
   position: fixed;
   inset: 0;
   z-index: 60;
   display: grid;
   place-items: center;
-  background: var(--color-ink-soft);
+  background: var(--color-coral);
   clip-path: inset(100% 0 0 0);
   visibility: hidden;
 }
 
 .transition-overlay__title {
   overflow: hidden;
+  color: var(--color-paper);
   font-family: var(--font-serif);
   font-size: clamp(2.5rem, 8vw, 6.5rem);
   letter-spacing: 0.02em;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 .transition-overlay__title .char {
@@ -67,9 +78,36 @@ html.is-transitioning body {
   will-change: transform;
 }
 
+/* Clone used by the gallery → photo FLIP transition. */
+.flip-clone {
+  position: fixed;
+  z-index: 70;
+  margin: 0;
+  object-fit: cover;
+  border-radius: 2px;
+  will-change: transform, width, height, top, left;
+}
+
+/* Category filter buttons: colored underline when active (JS toggles aria-pressed). */
+.filter-btn {
+  color: var(--color-muted);
+  transition: color 0.3s ease;
+}
+
+.filter-btn:hover {
+  color: var(--color-ink);
+}
+
+.filter-btn[aria-pressed="true"] {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--cat, var(--color-coral));
+}
+
 /* ---------- images ---------- */
 
-/* LQIP sits behind; the real image fades in on load (JS adds .is-loaded). */
 .photo-media {
   background-size: cover;
   background-position: center;
@@ -82,6 +120,24 @@ html.is-transitioning body {
 
 .photo-img.is-loaded {
   opacity: 1;
+}
+
+/* Playful hover: image lifts, colored offset frame appears behind. */
+.photo-card a {
+  display: block;
+  outline-offset: 4px;
+}
+
+.photo-card .photo-media {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .photo-card a:hover .photo-media,
+  .photo-card a:focus-visible .photo-media {
+    transform: translate(-6px, -6px);
+    box-shadow: 10px 10px 0 0 var(--cat, var(--color-coral));
+  }
 }
 
 /* No JS or reduced motion: never hide content. */

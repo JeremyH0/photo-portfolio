@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import PhotoCard from '../../components/PhotoCard.astro';
 import { getLocalePaths, l, ui, type LocaleCode } from '../../i18n/locales';
 import { getCategories, getPhotos, getSiteSettings } from '../../lib/queries';
+import { accentFor } from '../../lib/accents';
 
 export function getStaticPaths() {
   return getLocalePaths();
@@ -16,6 +17,8 @@ const [photos, categories, settings] = await Promise.all([
   getCategories(),
   getSiteSettings(),
 ]);
+
+const accent = accentFor(categories);
 
 // Editorial 12-column rhythm: wide / narrow-offset pairs, repeating every 6.
 const pattern = [
@@ -40,11 +43,8 @@ const pattern = [
     <p class="hero-line mb-5 text-[0.72rem] uppercase tracking-[0.24em] text-muted">
       {t.tagline}
     </p>
-    <h1
-      class="hero-title font-serif text-[clamp(3rem,11vw,9.5rem)] leading-[0.98] tracking-[-0.01em]"
-      data-split
-    >
-      {settings.photographerName}
+    <h1 class="hero-title font-serif text-[clamp(3rem,11vw,9.5rem)] leading-[0.98] tracking-[-0.01em]">
+      <span data-split>{settings.photographerName}</span><span class="text-coral">.</span>
     </h1>
   </section>
 
@@ -53,16 +53,17 @@ const pattern = [
     class="filter-bar mb-14 flex flex-wrap gap-x-7 gap-y-3 border-t border-line pt-6 text-[0.72rem] uppercase tracking-[0.2em]"
     aria-label="Categories"
   >
-    <button type="button" class="filter-btn text-paper transition-colors duration-300" data-filter="all" aria-pressed="true">
+    <button type="button" class="filter-btn" data-filter="all" aria-pressed="true">
       {t.all}
     </button>
     {
       categories.map((cat) => (
         <button
           type="button"
-          class="filter-btn text-muted transition-colors duration-300 hover:text-paper"
+          class="filter-btn"
           data-filter={cat.slug}
           aria-pressed="false"
+          style={`--cat: ${accent(cat.slug)}`}
         >
           {l(cat.title, lang)}
         </button>
@@ -80,6 +81,7 @@ const pattern = [
           class={pattern[i % pattern.length].span}
           sizes={pattern[i % pattern.length].sizes}
           eager={i < 2}
+          accent={accent(photo.category?.slug)}
         />
       ))
     }

@@ -1,7 +1,7 @@
 import { sanity } from './sanity';
-import type { LocaleCode } from '../i18n/locales';
+import type { SanityKey } from '../i18n/locales';
 
-type Localized = Partial<Record<LocaleCode, string>>;
+type Localized = Partial<Record<SanityKey, string>>;
 
 export interface SanityImageRef {
   _type: 'image';
