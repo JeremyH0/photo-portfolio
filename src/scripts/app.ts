@@ -303,6 +303,26 @@ function initParallax(container: HTMLElement) {
   updateParallax();
 }
 
+/** Hover parallax: the image leans gently toward the pointer. */
+function initHoverParallax(container: HTMLElement) {
+  if (reducedMotion || !window.matchMedia('(hover: hover)').matches) return;
+  container.querySelectorAll<HTMLElement>('.photo-card a').forEach((link) => {
+    const media = link.querySelector<HTMLElement>('.photo-media');
+    if (!media) return;
+    const toX = gsap.quickTo(media, 'x', { duration: 0.4, ease: 'power3' });
+    const toY = gsap.quickTo(media, 'y', { duration: 0.4, ease: 'power3' });
+    link.addEventListener('pointermove', (e) => {
+      const rect = link.getBoundingClientRect();
+      toX(((e.clientX - rect.left) / rect.width - 0.5) * 14);
+      toY(((e.clientY - rect.top) / rect.height - 0.5) * 14);
+    });
+    link.addEventListener('pointerleave', () => {
+      toX(0);
+      toY(0);
+    });
+  });
+}
+
 function initPage(container: HTMLElement) {
   // Barba also fires afterEnter for the initial load — never init twice
   // (double-bound listeners made one burger tap open AND close the menu).
@@ -316,6 +336,7 @@ function initPage(container: HTMLElement) {
   initHero(container);
   initReveals(container);
   initParallax(container);
+  initHoverParallax(container);
 }
 
 /* ---------------- theme toggle (event delegation, survives Barba swaps) ---------------- */
