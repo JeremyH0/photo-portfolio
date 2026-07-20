@@ -26,8 +26,8 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 function accentColors(): [string, string] {
   const styles = getComputedStyle(document.documentElement);
   return [
-    styles.getPropertyValue('--color-accent').trim() || '#33628f',
-    styles.getPropertyValue('--color-accent-soft').trim() || '#a9c6df',
+    styles.getPropertyValue('--color-accent').trim() || '#a87e2f',
+    styles.getPropertyValue('--color-accent-soft').trim() || '#e2c078',
   ];
 }
 
@@ -259,6 +259,50 @@ function initDetail(container: HTMLElement) {
   });
 }
 
+/* ---------------- parallax ---------------- */
+
+type ParallaxItem = { el: HTMLElement; speed: number; scale: number };
+let parallaxItems: ParallaxItem[] = [];
+let parallaxTicking = false;
+
+function updateParallax() {
+  const vh = window.innerHeight;
+  for (const { el, speed, scale } of parallaxItems) {
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom < -160 || rect.top > vh + 160) continue;
+    const progress = (rect.top + rect.height / 2 - vh / 2) / vh;
+    const shift = (-progress * speed * 100).toFixed(2);
+    el.style.transform = `translate3d(0, ${shift}px, 0)${scale !== 1 ? ` scale(${scale})` : ''}`;
+  }
+  parallaxTicking = false;
+}
+
+function requestParallax() {
+  if (parallaxTicking) return;
+  parallaxTicking = true;
+  requestAnimationFrame(updateParallax);
+}
+
+window.addEventListener('scroll', requestParallax, { passive: true });
+window.addEventListener('resize', requestParallax);
+
+function initParallax(container: HTMLElement) {
+  parallaxItems = [];
+  if (reducedMotion) return;
+
+  // Elements opting in via data-parallax="<speed>".
+  container.querySelectorAll<HTMLElement>('[data-parallax]').forEach((el) => {
+    parallaxItems.push({ el, speed: parseFloat(el.dataset.parallax || '0.12'), scale: 1 });
+  });
+
+  // Gallery images drift inside their masks (over-scaled so edges never show).
+  container.querySelectorAll<HTMLElement>('.photo-card .photo-img').forEach((img) => {
+    parallaxItems.push({ el: img, speed: -0.07, scale: 1.14 });
+  });
+
+  updateParallax();
+}
+
 function initPage(container: HTMLElement) {
   // Barba also fires afterEnter for the initial load — never init twice
   // (double-bound listeners made one burger tap open AND close the menu).
@@ -271,6 +315,7 @@ function initPage(container: HTMLElement) {
   initDetail(container);
   initHero(container);
   initReveals(container);
+  initParallax(container);
 }
 
 /* ---------------- theme toggle (event delegation, survives Barba swaps) ---------------- */
@@ -352,23 +397,25 @@ const waveSvg = document.querySelector<SVGSVGElement>('.transition-wave');
 const wavePath = waveSvg?.querySelector<SVGPathElement>('.transition-wave__path');
 const waveStops = waveSvg?.querySelectorAll<SVGStopElement>('.transition-wave__stop');
 
-function waveIn(): gsap.core.Timeline {
+type WaveOptions = { from?: 'bottom' | 'top'; speed?: number };
+
+function waveIn({ from = 'bottom', speed = 1 }: WaveOptions = {}): gsap.core.Timeline {
   const [accent, soft] = accentColors();
   waveStops?.[0]?.setAttribute('stop-color', accent);
   waveStops?.[1]?.setAttribute('stop-color', soft);
-  const tl = gsap.timeline({ defaults: { duration: 0.5 } });
-  tl.set(waveSvg!, { visibility: 'visible' })
+  const tl = gsap.timeline({ defaults: { duration: 0.45 / speed } });
+  tl.set(waveSvg!, { visibility: 'visible', scaleY: from === 'top' ? -1 : 1 })
     .set(wavePath!, { attr: { d: WAVE.hidden } })
     .to(wavePath!, { morphSVG: WAVE.mid, ease: 'power2.in' })
     .to(wavePath!, { morphSVG: WAVE.cover, ease: 'power2.out' });
   return tl;
 }
 
-function waveOut(): gsap.core.Timeline {
-  const tl = gsap.timeline({ defaults: { duration: 0.5 } });
+function waveOut({ speed = 1 }: WaveOptions = {}): gsap.core.Timeline {
+  const tl = gsap.timeline({ defaults: { duration: 0.45 / speed } });
   tl.to(wavePath!, { morphSVG: WAVE.midOut, ease: 'power2.in' })
     .to(wavePath!, { morphSVG: WAVE.gone, ease: 'power2.out' })
-    .set(waveSvg!, { visibility: 'hidden' })
+    .set(waveSvg!, { visibility: 'hidden', scaleY: 1 })
     .set(wavePath!, { attr: { d: WAVE.hidden } });
   return tl;
 }
@@ -392,7 +439,9 @@ function initBarba() {
         async leave({ current, trigger }) {
           const link = photoLinkFrom(trigger)!;
           const img = link.querySelector('img')!;
-          const rect = img.getBoundingClientRect();
+          // Measure the mask, not the img — parallax over-scales the img
+          // inside it, so the img rect is larger than what's visible.
+          const rect = (link.querySelector('.photo-media') ?? img).getBoundingClientRect();
 
           flipClone = img.cloneNode(true) as HTMLImageElement;
           flipClone.className = 'flip-clone';
@@ -401,6 +450,7 @@ function initBarba() {
             left: `${rect.left}px`,
             width: `${rect.width}px`,
             height: `${rect.height}px`,
+            transform: 'none',
           });
           document.body.appendChild(flipClone);
           (link.closest('.photo-card') as HTMLElement).style.opacity = '0';
@@ -446,9 +496,9 @@ function initBarba() {
             trigger instanceof HTMLElement && trigger.closest('[data-nav-dir="prev"]') ? -1 : 1;
           (current.container as HTMLElement).dataset.slideDir = String(dir);
           await gsap.to(current.container, {
-            xPercent: -6 * dir,
+            xPercent: -5 * dir,
             autoAlpha: 0,
-            duration: 0.4,
+            duration: 0.26,
             ease: 'power2.in',
           });
         },
@@ -456,11 +506,27 @@ function initBarba() {
           window.scrollTo(0, 0);
           const dir = Number((current.container as HTMLElement).dataset.slideDir ?? 1);
           return gsap.from(next.container, {
-            xPercent: 6 * dir,
+            xPercent: 5 * dir,
             autoAlpha: 0,
-            duration: 0.55,
+            duration: 0.34,
             ease: 'power3.out',
           });
+        },
+      },
+      {
+        // Leaving a photo back to a section: the same wave language, but
+        // mirrored — it drops from the top and moves quicker.
+        name: 'wave-top',
+        custom: ({ current, next }) =>
+          current.namespace === 'photo' && next.namespace !== 'photo',
+        async leave() {
+          await waveIn({ from: 'top', speed: 1.35 });
+        },
+        enter() {
+          window.scrollTo(0, 0);
+        },
+        async after() {
+          await waveOut({ speed: 1.35 });
         },
       },
       {
@@ -470,6 +536,7 @@ function initBarba() {
         name: 'wave',
         custom: ({ current, next, trigger }) =>
           current.namespace !== next.namespace &&
+          current.namespace !== 'photo' &&
           !(next.namespace === 'photo' && photoLinkFrom(trigger) !== null),
         async leave() {
           await waveIn();
@@ -512,6 +579,8 @@ function initBarba() {
   barba.hooks.beforeLeave(() => {
     revealObserver?.disconnect();
     revealObserver = null;
+    // Old container's elements are going away — stop parallaxing them.
+    parallaxItems = [];
   });
 
   barba.hooks.afterEnter((data) => {

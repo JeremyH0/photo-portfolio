@@ -1,22 +1,45 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getLocalePaths, l, ui, type LocaleCode } from '../../../i18n/locales';
-import { getPhotos, getSiteSettings, type Photo } from '../../../lib/queries';
+import { getCategories, getPhotos, getSiteSettings, type Photo } from '../../../lib/queries';
 import { srcsetFor, urlFor } from '../../../lib/image';
 
 export async function getStaticPaths() {
-  const photos = await getPhotos();
+  const [photos, categories] = await Promise.all([getPhotos(), getCategories()]);
+
+  // Albums = categories: navigation on a photo page stays inside its album.
+  const byAlbum = new Map<string, Photo[]>();
+  for (const photo of photos) {
+    const slug = photo.category?.slug ?? 'other';
+    if (!byAlbum.has(slug)) byAlbum.set(slug, []);
+    byAlbum.get(slug)!.push(photo);
+  }
+
+  const albums = categories
+    .filter((cat) => byAlbum.has(cat.slug))
+    .map((cat) => ({
+      slug: cat.slug,
+      title: cat.title,
+      firstId: byAlbum.get(cat.slug)![0]._id,
+      count: byAlbum.get(cat.slug)!.length,
+    }));
+
   return getLocalePaths().flatMap(({ params }) =>
-    photos.map((photo, i) => ({
-      params: { ...params, id: photo._id },
-      props: {
-        photo,
-        index: i + 1,
-        total: photos.length,
-        prev: photos[(i - 1 + photos.length) % photos.length],
-        next: photos[(i + 1) % photos.length],
-      },
-    })),
+    photos.map((photo) => {
+      const album = byAlbum.get(photo.category?.slug ?? 'other')!;
+      const i = album.findIndex((p) => p._id === photo._id);
+      return {
+        params: { ...params, id: photo._id },
+        props: {
+          photo,
+          index: i + 1,
+          total: album.length,
+          prev: album[(i - 1 + album.length) % album.length],
+          next: album[(i + 1) % album.length],
+          albums,
+        },
+      };
+    }),
   );
 }
 
@@ -26,15 +49,22 @@ interface Props {
   total: number;
   prev: Photo;
   next: Photo;
+  albums: {
+    slug: string;
+    title: Photo['title'];
+    firstId: string;
+    count: number;
+  }[];
 }
 
 const lang = Astro.params.lang as LocaleCode;
 const t = ui[lang];
-const { photo, index, total, prev, next } = Astro.props;
+const { photo, index, total, prev, next, albums } = Astro.props;
 const settings = await getSiteSettings();
 
 const title = l(photo.title, lang);
 const caption = l(photo.caption, lang);
+const albumTitle = l(photo.category?.title, lang);
 const isPortrait = photo.image.height > photo.image.width;
 const pad = (n: number) => String(n).padStart(2, '0');
 ---
@@ -43,15 +73,37 @@ const pad = (n: number) => String(n).padStart(2, '0');
   lang={lang}
   namespace="photo"
   pageTitle={title}
-  title={`${title} — ${settings.photographerName}`}
+  title={`${title} — ${albumTitle} — ${settings.photographerName}`}
   description={caption || undefined}
   photographerName={settings.photographerName}
 >
   <article class="pt-4 md:pt-8" id="top">
-    <div class="detail-reveal mb-6 flex items-baseline justify-between text-[0.72rem] uppercase tracking-[0.22em]">
+    <div class="detail-reveal mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 text-[0.72rem] uppercase tracking-[0.22em]">
       <a href={`/${lang}/`} class="text-muted transition-colors duration-300 hover:text-ink">
         ← {t.back}
       </a>
+
+      <!-- Album switcher: jump straight into another album -->
+      <nav class="flex flex-wrap gap-x-6 gap-y-2" aria-label={t.albums}>
+        {
+          albums.map((album) => (
+            <a
+              href={`/${lang}/photo/${album.firstId}/`}
+              class:list={[
+                'transition-colors duration-300',
+                album.slug === photo.category?.slug
+                  ? 'text-ink underline decoration-accent decoration-2 underline-offset-4'
+                  : 'text-muted hover:text-ink',
+              ]}
+              aria-current={album.slug === photo.category?.slug ? 'true' : undefined}
+            >
+              {l(album.title, lang)}
+              <span class="ml-1 text-muted">{pad(album.count)}</span>
+            </a>
+          ))
+        }
+      </nav>
+
       <p class="text-muted" aria-label={`${index} ${t.counterOf} ${total}`}>
         <span class="text-ink">{pad(index)}</span>
         <span class="mx-1">/</span>
@@ -108,7 +160,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 
     <div class="mx-auto mt-10 flex max-w-4xl flex-col items-center text-center md:mt-14">
       <p class="detail-reveal text-[0.72rem] uppercase tracking-[0.22em] text-accent">
-        {l(photo.category?.title, lang)}
+        {albumTitle} — {pad(index)}
       </p>
       <h1 class="detail-reveal mt-4 font-serif text-[clamp(2.2rem,6vw,4.5rem)] leading-[1.05]">
         {title}

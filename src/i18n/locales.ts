@@ -45,6 +45,7 @@ type UIStrings = {
   zoom: string;
   close: string;
   counterOf: string;
+  albums: string;
 };
 
 export const ui: Record<LocaleCode, UIStrings> = {
@@ -63,6 +64,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     zoom: 'Zoom',
     close: 'Close',
     counterOf: 'of',
+    albums: 'Albums',
   },
   ja: {
     work: '作品',
@@ -79,6 +81,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     zoom: '拡大',
     close: '閉じる',
     counterOf: '/',
+    albums: 'アルバム',
   },
   zh: {
     work: '作品',
@@ -95,6 +98,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     zoom: '放大',
     close: '关闭',
     counterOf: '/',
+    albums: '相册',
   },
   'zh-tw': {
     work: '作品',
@@ -111,6 +115,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     zoom: '放大',
     close: '關閉',
     counterOf: '/',
+    albums: '相簿',
   },
 };
 
