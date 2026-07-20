@@ -70,6 +70,25 @@ const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
       </div>
     </div>
 
+    <!-- Wave transition overlay (GreenSock morphSVG pen adaptation) -->
+    <svg
+      class="transition-wave"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="xMidYMin slice"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="wave-grad" x1="0" y1="0" x2="99" y2="99" gradientUnits="userSpaceOnUse">
+          <stop class="transition-wave__stop" offset="0.2" stop-color="#ff4b24"></stop>
+          <stop class="transition-wave__stop" offset="0.85" stop-color="#ffb400"></stop>
+        </linearGradient>
+      </defs>
+      <path
+        class="transition-wave__path"
+        fill="url(#wave-grad)"
+        d="M 0 100 V 100 Q 50 100 100 100 V 100 z"></path>
+    </svg>
+
     <!-- Custom cursor (JS enables it on fine pointers only) -->
     <div class="cursor" aria-hidden="true">
       <div class="cursor-ring"><div class="cursor-ring__circle"><span class="cursor-label"></span></div></div>

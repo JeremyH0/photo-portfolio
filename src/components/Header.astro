@@ -14,14 +14,17 @@ const nav = [
   { href: `/${lang}/`, label: t.work, active: basePath === '/' },
   { href: `/${lang}/about/`, label: t.about, active: basePath.startsWith('/about') },
 ];
+
+const langHref = (code: string) => `/${code}${basePath === '/' ? '/' : basePath}`;
 ---
 
-<header class="flex items-center justify-between py-6 text-[0.72rem] uppercase tracking-[0.22em] md:py-8">
+<header class="relative z-40 flex items-center justify-between py-6 text-[0.72rem] uppercase tracking-[0.22em] md:py-8">
   <a href={`/${lang}/`} class="font-medium normal-case tracking-[0.08em] text-ink">
     {photographerName}
   </a>
 
-  <div class="flex items-center gap-8 md:gap-12">
+  <!-- Desktop -->
+  <div class="hidden items-center gap-8 md:flex md:gap-12">
     <nav class="flex gap-6 md:gap-8" aria-label="Main">
       {
         nav.map((item) => (
@@ -44,10 +47,10 @@ const nav = [
       {
         locales.map((loc) => (
           <a
-            href={`/${loc.code}${basePath === '/' ? '/' : basePath}`}
+            href={langHref(loc.code)}
             class:list={[
               'transition-colors duration-300 hover:text-ink',
-              loc.code === lang ? 'text-ink underline underline-offset-4 decoration-coral decoration-2' : 'text-muted',
+              loc.code === lang ? 'text-ink underline decoration-coral decoration-2 underline-offset-4' : 'text-muted',
             ]}
             aria-current={loc.code === lang ? 'true' : undefined}
             lang={loc.htmlLang}
@@ -58,4 +61,59 @@ const nav = [
       }
     </nav>
   </div>
+
+  <!-- Mobile -->
+  <div class="flex items-center gap-5 md:hidden">
+    <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
+      ◐
+    </button>
+    <button
+      type="button"
+      class="burger"
+      data-menu-toggle
+      aria-label="Menu"
+      aria-expanded="false"
+    >
+      <span class="burger__line"></span>
+      <span class="burger__line"></span>
+    </button>
+  </div>
 </header>
+
+<!-- Full-screen mobile menu -->
+<div class="mobile-menu md:hidden" data-mobile-menu aria-hidden="true">
+  <nav class="flex flex-col gap-2" aria-label="Main">
+    {
+      nav.map((item, i) => (
+        <a
+          href={item.href}
+          class="mobile-menu__link font-serif"
+          aria-current={item.active ? 'page' : undefined}
+        >
+          <span class="mr-4 align-middle text-[0.7rem] uppercase tracking-[0.3em] text-muted">
+            0{i + 1}
+          </span>
+          <span class:list={[item.active ? 'mobile-menu__link-label is-active' : 'mobile-menu__link-label']}>
+            {item.label}
+          </span>
+        </a>
+      ))
+    }
+  </nav>
+
+  <div class="mobile-menu__footer">
+    <nav class="flex gap-6 text-[0.78rem] uppercase tracking-[0.22em]" aria-label="Language">
+      {
+        locales.map((loc) => (
+          <a
+            href={langHref(loc.code)}
+            class:list={[loc.code === lang ? 'text-ink underline decoration-coral decoration-2 underline-offset-4' : 'text-muted']}
+            lang={loc.htmlLang}
+          >
+            {loc.label}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</div>

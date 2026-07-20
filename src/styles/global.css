@@ -76,6 +76,74 @@ body {
   transform: rotate(180deg);
 }
 
+/* ---------- hamburger + mobile menu ---------- */
+
+.burger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  width: 32px;
+  height: 32px;
+}
+
+.burger__line {
+  display: block;
+  height: 1.5px;
+  width: 100%;
+  background: var(--color-ink);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.burger.is-open .burger__line:first-child {
+  transform: translateY(4.25px) rotate(45deg);
+}
+
+.burger.is-open .burger__line:last-child {
+  transform: translateY(-4.25px) rotate(-45deg);
+}
+
+.mobile-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3rem;
+  padding: 6.5rem 1.75rem 3rem;
+  background: var(--color-paper);
+  visibility: hidden;
+}
+
+.mobile-menu.is-open {
+  visibility: visible;
+}
+
+.mobile-menu__link {
+  font-size: clamp(2.6rem, 11vw, 4rem);
+  line-height: 1.2;
+  color: var(--color-ink);
+}
+
+.mobile-menu__link-label.is-active {
+  text-decoration: underline;
+  text-decoration-color: var(--color-coral);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 8px;
+}
+
+.mobile-menu__footer {
+  border-top: 1px solid var(--color-line);
+  padding-top: 1.5rem;
+}
+
+/* Lock scroll behind the open menu. */
+html.menu-open,
+html.menu-open body {
+  overflow: hidden;
+}
+
 /* ---------- page transitions ---------- */
 
 html.is-transitioning,
@@ -84,21 +152,20 @@ html.is-transitioning body {
   cursor: progress;
 }
 
-/* The tutorial's sixth transition (pseudo-element curtain): the next
-   container opens from a slit while this colored ::before lifts off it.
-   Structure and values follow the Codrops article verbatim; the color is
-   set per-navigation by JS via --curtain-overlay. */
-.curtain__transition::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
+/* Wave transition (GreenSock morphSVG pen adaptation): full-screen SVG,
+   path morphs drive the curved sweep. Colors set per-navigation by JS. */
+.transition-wave {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
   width: 100%;
   height: 100%;
-  z-index: 100;
-  will-change: clip-path;
-  background-color: var(--curtain-overlay, var(--color-coral));
-  clip-path: var(--clip, inset(0 0 100% 0));
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.transition-wave__path {
+  will-change: d;
 }
 
 /* Clone used by the gallery → photo FLIP transition. */

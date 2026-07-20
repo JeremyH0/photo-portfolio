@@ -16,11 +16,9 @@
  */
 import barba from '@barba/core';
 import gsap from 'gsap';
-import { CustomEase } from 'gsap/CustomEase';
+import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 
-gsap.registerPlugin(CustomEase);
-// The tutorial's easing curve, verbatim.
-CustomEase.create('hop', '0.56, 0, 0.35, 0.98');
+gsap.registerPlugin(MorphSVGPlugin);
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const ACCENTS = ['#ff4b24', '#2743ff', '#ffb400'];
@@ -158,10 +156,65 @@ function initBackToTop(container: HTMLElement) {
   });
 }
 
+function initMenu(container: HTMLElement) {
+  const btn = container.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  const menu = container.querySelector<HTMLElement>('[data-mobile-menu]');
+  if (!btn || !menu) return;
+  const links = menu.querySelectorAll('a');
+
+  const open = () => {
+    btn.setAttribute('aria-expanded', 'true');
+    btn.classList.add('is-open');
+    menu.classList.add('is-open');
+    menu.setAttribute('aria-hidden', 'false');
+    document.documentElement.classList.add('menu-open');
+    if (!reducedMotion) {
+      gsap.fromTo(
+        menu,
+        { clipPath: 'inset(0 0 100% 0)' },
+        { clipPath: 'inset(0 0 0% 0)', duration: 0.5, ease: 'power3.inOut' },
+      );
+      gsap.fromTo(
+        links,
+        { y: 44, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 0.6, ease: 'power3.out', stagger: 0.06, delay: 0.18 },
+      );
+    }
+  };
+
+  const close = () => {
+    btn.setAttribute('aria-expanded', 'false');
+    btn.classList.remove('is-open');
+    document.documentElement.classList.remove('menu-open');
+    const finish = () => {
+      menu.classList.remove('is-open');
+      menu.setAttribute('aria-hidden', 'true');
+      gsap.set(menu, { clearProps: 'clipPath' });
+    };
+    if (reducedMotion) finish();
+    else
+      gsap.to(menu, {
+        clipPath: 'inset(0 0 100% 0)',
+        duration: 0.4,
+        ease: 'power3.inOut',
+        onComplete: finish,
+      });
+  };
+
+  btn.addEventListener('click', () =>
+    btn.getAttribute('aria-expanded') === 'true' ? close() : open(),
+  );
+}
+
 function initPage(container: HTMLElement) {
+  // Barba also fires afterEnter for the initial load — never init twice
+  // (double-bound listeners made one burger tap open AND close the menu).
+  if (container.dataset.appInit === '1') return;
+  container.dataset.appInit = '1';
   initImages(container);
   initFilter(container);
   initBackToTop(container);
+  initMenu(container);
   initHero(container);
   initReveals(container);
 }
@@ -237,6 +290,46 @@ let accentIndex = 0;
 function nextAccent(): string {
   accentIndex = (accentIndex + 1) % ACCENTS.length;
   return ACCENTS[accentIndex];
+}
+
+/**
+ * Curved wave sweep, adapted from GreenSock's "morphSVG curve manipulation"
+ * pen (codepen.io/GreenSock/pen/EaKpEpJ): the covering edge bulges through a
+ * quadratic curve mid-flight and flattens at rest. Cover comes up from the
+ * bottom; reveal continues off the top. Gradient uses our accent palette.
+ */
+const WAVE = {
+  hidden: 'M 0 100 V 100 Q 50 100 100 100 V 100 z',
+  mid: 'M 0 100 V 50 Q 50 0 100 50 V 100 z', // the pen's "start"
+  cover: 'M 0 100 V 0 Q 50 0 100 0 V 100 z', // the pen's "end"
+  midOut: 'M 0 0 V 50 Q 50 100 100 50 V 0 z',
+  gone: 'M 0 0 V 0 Q 50 0 100 0 V 0 z',
+};
+
+const waveSvg = document.querySelector<SVGSVGElement>('.transition-wave');
+const wavePath = waveSvg?.querySelector<SVGPathElement>('.transition-wave__path');
+const waveStops = waveSvg?.querySelectorAll<SVGStopElement>('.transition-wave__stop');
+
+function waveIn(): gsap.core.Timeline {
+  const accent = nextAccent();
+  const partner = ACCENTS[(ACCENTS.indexOf(accent) + 1) % ACCENTS.length];
+  waveStops?.[0]?.setAttribute('stop-color', accent);
+  waveStops?.[1]?.setAttribute('stop-color', partner);
+  const tl = gsap.timeline({ defaults: { duration: 0.5 } });
+  tl.set(waveSvg!, { visibility: 'visible' })
+    .set(wavePath!, { attr: { d: WAVE.hidden } })
+    .to(wavePath!, { morphSVG: WAVE.mid, ease: 'power2.in' })
+    .to(wavePath!, { morphSVG: WAVE.cover, ease: 'power2.out' });
+  return tl;
+}
+
+function waveOut(): gsap.core.Timeline {
+  const tl = gsap.timeline({ defaults: { duration: 0.5 } });
+  tl.to(wavePath!, { morphSVG: WAVE.midOut, ease: 'power2.in' })
+    .to(wavePath!, { morphSVG: WAVE.gone, ease: 'power2.out' })
+    .set(waveSvg!, { visibility: 'hidden' })
+    .set(wavePath!, { attr: { d: WAVE.hidden } });
+  return tl;
 }
 
 function photoLinkFrom(trigger: unknown): HTMLElement | null {
@@ -330,50 +423,21 @@ function initBarba() {
         },
       },
       {
-        // Section change: the tutorial's sixth transition (pseudo-element
-        // curtain, leandra-isler.ch-inspired). The next page opens from a
-        // thin slit while a colored curtain lifts off it. Sync mode: both
-        // containers are in the DOM; the old page stays beneath.
-        name: 'curtain',
+        // Section change: curved wave sweep (GreenSock pen adaptation).
+        // The wave covers the old page, the swap happens beneath it, then
+        // the wave continues off the top revealing the new page.
+        name: 'wave',
         custom: ({ current, next, trigger }) =>
           current.namespace !== next.namespace &&
           !(next.namespace === 'photo' && photoLinkFrom(trigger) !== null),
-        sync: true,
-        before(data) {
-          data.next.container.classList.add('curtain__transition');
-          gsap.set(data.next.container, {
-            position: 'fixed',
-            inset: 0,
-            clipPath: 'polygon(15% 75%, 85% 75%, 85% 75%, 15% 75%)',
-            zIndex: 3,
-            height: '100vh',
-            overflow: 'hidden',
-            '--clip': 'inset(0 0 0% 0)',
-            '--curtain-overlay': nextAccent(),
-          });
+        async leave() {
+          await waveIn();
         },
-        enter(data) {
-          const tl = gsap.timeline({
-            defaults: { duration: 1.25, ease: 'hop' },
-            onComplete: () => tl.kill(),
-          });
-
-          tl.to(data.next.container, {
-            clipPath: 'polygon(0% 100%, 100% 100%, 100% 0%, 0% 0%)',
-          });
-
-          tl.to(data.next.container, { '--clip': 'inset(0 0 100% 0)' }, '<+=0.285');
-
-          return new Promise<void>((resolve) => {
-            tl.call(() => resolve());
-          });
-        },
-        after(data) {
-          data.next.container.classList.remove('curtain__transition');
-          // Adaptation: our pages scroll — reset before releasing the fixed
-          // positioning so the revealed page starts at the top.
+        enter() {
           window.scrollTo(0, 0);
-          gsap.set(data.next.container, { clearProps: 'all' });
+        },
+        async after() {
+          await waveOut();
         },
       },
       {
@@ -426,6 +490,8 @@ function initBarba() {
 
   barba.hooks.after(() => {
     document.documentElement.classList.remove('is-transitioning');
+    // The old container (and its open menu) is gone — release the scroll lock.
+    document.documentElement.classList.remove('menu-open');
     // The hovered element is gone after a swap — reset cursor state.
     cursorEl?.classList.remove('is-view', 'is-hover');
   });
