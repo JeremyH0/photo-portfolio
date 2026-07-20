@@ -1,19 +1,18 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { getLocalePaths, l, ui, type LocaleCode } from '../../../i18n/locales';
-import { getCategories, getPhotos, getSiteSettings, type Photo } from '../../../lib/queries';
+import { getPhotos, getSiteSettings, type Photo } from '../../../lib/queries';
 import { srcsetFor, urlFor } from '../../../lib/image';
-import { accentFor } from '../../../lib/accents';
 
 export async function getStaticPaths() {
-  const [photos, categories] = await Promise.all([getPhotos(), getCategories()]);
-  const accent = accentFor(categories);
+  const photos = await getPhotos();
   return getLocalePaths().flatMap(({ params }) =>
     photos.map((photo, i) => ({
       params: { ...params, id: photo._id },
       props: {
         photo,
-        accent: accent(photo.category?.slug),
+        index: i + 1,
+        total: photos.length,
         prev: photos[(i - 1 + photos.length) % photos.length],
         next: photos[(i + 1) % photos.length],
       },
@@ -23,19 +22,21 @@ export async function getStaticPaths() {
 
 interface Props {
   photo: Photo;
-  accent: string;
+  index: number;
+  total: number;
   prev: Photo;
   next: Photo;
 }
 
 const lang = Astro.params.lang as LocaleCode;
 const t = ui[lang];
-const { photo, accent, prev, next } = Astro.props;
+const { photo, index, total, prev, next } = Astro.props;
 const settings = await getSiteSettings();
 
 const title = l(photo.title, lang);
 const caption = l(photo.caption, lang);
 const isPortrait = photo.image.height > photo.image.width;
+const pad = (n: number) => String(n).padStart(2, '0');
 ---
 
 <Layout
@@ -46,35 +47,67 @@ const isPortrait = photo.image.height > photo.image.width;
   description={caption || undefined}
   photographerName={settings.photographerName}
 >
-  <article class="pt-4 md:pt-8" id="top" style={`--cat: ${accent}`}>
-    <p class="detail-reveal mb-6 text-[0.72rem] uppercase tracking-[0.22em]">
+  <article class="pt-4 md:pt-8" id="top">
+    <div class="detail-reveal mb-6 flex items-baseline justify-between text-[0.72rem] uppercase tracking-[0.22em]">
       <a href={`/${lang}/`} class="text-muted transition-colors duration-300 hover:text-ink">
         ← {t.back}
       </a>
-    </p>
+      <p class="text-muted" aria-label={`${index} ${t.counterOf} ${total}`}>
+        <span class="text-ink">{pad(index)}</span>
+        <span class="mx-1">/</span>
+        <span>{pad(total)}</span>
+      </p>
+    </div>
+
+    <!-- Side arrows (desktop) -->
+    <a
+      href={`/${lang}/photo/${prev._id}/`}
+      data-nav-dir="prev"
+      class="detail-arrow detail-arrow--prev"
+      aria-label={`${t.prev}: ${l(prev.title, lang)}`}
+    >
+      ←
+    </a>
+    <a
+      href={`/${lang}/photo/${next._id}/`}
+      data-nav-dir="next"
+      class="detail-arrow detail-arrow--next"
+      aria-label={`${t.next}: ${l(next.title, lang)}`}
+    >
+      →
+    </a>
 
     <figure data-detail-hero class="flex flex-col items-center">
-      <div
-        class:list={['photo-media relative w-full overflow-hidden rounded-[2px]', isPortrait ? 'max-w-[62vh]' : '']}
-        style={`aspect-ratio: ${photo.image.width} / ${photo.image.height}; background-image: url(${photo.image.lqip})`}
+      <button
+        type="button"
+        data-zoom-toggle
+        data-cursor-label={t.zoom}
+        data-close-label={t.close}
+        aria-label={t.zoom}
+        class:list={['block w-full', isPortrait ? 'max-w-[62vh]' : '']}
       >
-        <img
-          class="photo-img absolute inset-0 h-full w-full object-cover"
-          src={urlFor(photo.image, 1920)}
-          srcset={srcsetFor(photo.image)}
-          sizes="(min-width: 1024px) 85vw, 100vw"
-          width={photo.image.width}
-          height={photo.image.height}
-          alt={caption ? `${title} — ${caption}` : title}
-          loading="eager"
-          fetchpriority="high"
-          decoding="async"
-        />
-      </div>
+        <div
+          class="photo-media relative w-full overflow-hidden rounded-[2px]"
+          style={`aspect-ratio: ${photo.image.width} / ${photo.image.height}; background-image: url(${photo.image.lqip})`}
+        >
+          <img
+            class="photo-img absolute inset-0 h-full w-full object-cover"
+            src={urlFor(photo.image, 1920)}
+            srcset={srcsetFor(photo.image)}
+            sizes="(min-width: 1024px) 85vw, 100vw"
+            width={photo.image.width}
+            height={photo.image.height}
+            alt={caption ? `${title} — ${caption}` : title}
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+          />
+        </div>
+      </button>
     </figure>
 
     <div class="mx-auto mt-10 flex max-w-4xl flex-col items-center text-center md:mt-14">
-      <p class="detail-reveal cat-accent text-[0.72rem] uppercase tracking-[0.22em]">
+      <p class="detail-reveal text-[0.72rem] uppercase tracking-[0.22em] text-accent">
         {l(photo.category?.title, lang)}
       </p>
       <h1 class="detail-reveal mt-4 font-serif text-[clamp(2.2rem,6vw,4.5rem)] leading-[1.05]">
@@ -84,26 +117,44 @@ const isPortrait = photo.image.height > photo.image.width;
     </div>
 
     <nav
-      class="mt-20 flex items-center justify-between border-t border-line pt-8 text-[0.72rem] uppercase tracking-[0.2em] md:mt-28"
+      class="mt-20 flex items-center justify-between gap-6 border-t border-line pt-8 text-[0.72rem] uppercase tracking-[0.2em] md:mt-28"
       aria-label="Photos"
     >
       <a
         href={`/${lang}/photo/${prev._id}/`}
         data-nav-dir="prev"
-        class="group flex items-center gap-3 text-muted transition-colors duration-300 hover:text-ink"
+        class="group flex min-w-0 items-center gap-4 text-muted transition-colors duration-300 hover:text-ink"
       >
+        <img
+          class="detail-thumb shrink-0"
+          src={urlFor(prev.image, 160, 112)}
+          width="160"
+          height="112"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
         <span class="transition-transform duration-300 group-hover:-translate-x-1">←</span>
-        <span>{t.prev}</span>
-        <span class="hidden text-ink sm:inline">{l(prev.title, lang)}</span>
+        <span class="hidden sm:inline">{t.prev}</span>
+        <span class="truncate text-ink">{l(prev.title, lang)}</span>
       </a>
       <a
         href={`/${lang}/photo/${next._id}/`}
         data-nav-dir="next"
-        class="group flex items-center gap-3 text-muted transition-colors duration-300 hover:text-ink"
+        class="group flex min-w-0 items-center justify-end gap-4 text-muted transition-colors duration-300 hover:text-ink"
       >
-        <span class="hidden text-ink sm:inline">{l(next.title, lang)}</span>
-        <span>{t.next}</span>
+        <span class="truncate text-ink">{l(next.title, lang)}</span>
+        <span class="hidden sm:inline">{t.next}</span>
         <span class="transition-transform duration-300 group-hover:translate-x-1">→</span>
+        <img
+          class="detail-thumb shrink-0"
+          src={urlFor(next.image, 160, 112)}
+          width="160"
+          height="112"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
       </a>
     </nav>
   </article>

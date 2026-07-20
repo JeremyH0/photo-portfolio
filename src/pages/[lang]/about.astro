@@ -41,7 +41,7 @@ const bio = l(settings.bio, lang);
             class="group text-[0.78rem] uppercase tracking-[0.22em]"
           >
             <span class="mr-4 text-muted">{t.contact}</span>
-            <span class="border-b-2 border-cobalt pb-1 transition-colors duration-300 group-hover:text-cobalt">
+            <span class="border-b-2 border-accent pb-1 transition-colors duration-300 group-hover:text-accent">
               {settings.contactEmail}
             </span>
           </a>
@@ -55,7 +55,7 @@ const bio = l(settings.bio, lang);
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-[0.78rem] uppercase tracking-[0.22em] text-muted transition-colors duration-300 hover:text-coral"
+                class="text-[0.78rem] uppercase tracking-[0.22em] text-muted transition-colors duration-300 hover:text-accent"
               >
                 {link.label ?? link.url}
               </a>

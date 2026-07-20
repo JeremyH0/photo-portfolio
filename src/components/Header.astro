@@ -50,7 +50,7 @@ const langHref = (code: string) => `/${code}${basePath === '/' ? '/' : basePath}
             href={langHref(loc.code)}
             class:list={[
               'transition-colors duration-300 hover:text-ink',
-              loc.code === lang ? 'text-ink underline decoration-coral decoration-2 underline-offset-4' : 'text-muted',
+              loc.code === lang ? 'text-ink underline decoration-accent decoration-2 underline-offset-4' : 'text-muted',
             ]}
             aria-current={loc.code === lang ? 'true' : undefined}
             lang={loc.htmlLang}
@@ -107,7 +107,7 @@ const langHref = (code: string) => `/${code}${basePath === '/' ? '/' : basePath}
         locales.map((loc) => (
           <a
             href={langHref(loc.code)}
-            class:list={[loc.code === lang ? 'text-ink underline decoration-coral decoration-2 underline-offset-4' : 'text-muted']}
+            class:list={[loc.code === lang ? 'text-ink underline decoration-accent decoration-2 underline-offset-4' : 'text-muted']}
             lang={loc.htmlLang}
           >
             {loc.label}

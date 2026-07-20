@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-  /* Shiny editorial palette: warm cream paper, punchy accents. */
-  --color-paper: #fdf8f0;
-  --color-ink: #191410;
-  --color-muted: #97897a;
-  --color-line: #e9decc;
+  /* Hokkaido winter palette — "snow" (light). Minimalist: one glacial
+     accent; the photographs carry the color. */
+  --color-paper: #f6f6f3;
+  --color-ink: #17191c;
+  --color-muted: #8d9299;
+  --color-line: #e2e4e2;
 
-  --color-coral: #ff4b24;
-  --color-cobalt: #2743ff;
-  --color-sun: #ffb400;
+  --color-accent: #33628f; /* winter lake */
+  --color-accent-soft: #a9c6df; /* ice */
 
   --font-sans:
     "Helvetica Neue", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -22,12 +22,14 @@
     "Songti TC", "Noto Serif TC", serif;
 }
 
-/* Dark mode: gallery-black, same accents. Toggled via data-theme (persisted). */
+/* "Night" (dark): indigo-black night ski slope, snow-white type. */
 :root[data-theme="dark"] {
-  --color-paper: #131009;
-  --color-ink: #f2efe8;
-  --color-muted: #8f887c;
-  --color-line: #2a2721;
+  --color-paper: #0f1317;
+  --color-ink: #edf0f2;
+  --color-muted: #77808a;
+  --color-line: #222932;
+  --color-accent: #8fb6da;
+  --color-accent-soft: #33628f;
 }
 
 html {
@@ -48,13 +50,8 @@ body {
 }
 
 ::selection {
-  background: var(--color-coral);
+  background: var(--color-accent);
   color: var(--color-paper);
-}
-
-/* Category accent colors, cycled by index (set inline as --cat). */
-.cat-accent {
-  color: var(--cat, var(--color-coral));
 }
 
 /* ---------- theme toggle ---------- */
@@ -128,7 +125,7 @@ body {
 
 .mobile-menu__link-label.is-active {
   text-decoration: underline;
-  text-decoration-color: var(--color-coral);
+  text-decoration-color: var(--color-accent);
   text-decoration-thickness: 3px;
   text-underline-offset: 8px;
 }
@@ -243,11 +240,11 @@ html.has-cursor .cursor {
   opacity: 1;
 }
 
-/* Hovering a photo: ring becomes a filled accent badge with a label. */
+/* Hovering a labelled element (photos, zoom): filled accent badge. */
 .cursor.is-view .cursor-ring__circle {
   transform: scale(2.3);
   opacity: 1;
-  background: var(--cursor-accent, var(--color-coral));
+  background: var(--color-accent);
   border-color: transparent;
 }
 
@@ -293,7 +290,7 @@ html.has-cursor .cursor {
   opacity: 1;
 }
 
-/* Playful hover: image lifts, colored offset frame appears behind. */
+/* Quiet hover: image lifts on a thin accent hairline frame. */
 .photo-card a {
   display: block;
   outline-offset: 4px;
@@ -306,12 +303,12 @@ html.has-cursor .cursor {
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .photo-card a:hover .photo-media,
   .photo-card a:focus-visible .photo-media {
-    transform: translate(-6px, -6px);
-    box-shadow: 10px 10px 0 0 var(--cat, var(--color-coral));
+    transform: translate(-4px, -4px);
+    box-shadow: 4px 4px 0 0 var(--color-accent);
   }
 }
 
-/* Category filter buttons: colored underline when active (JS toggles aria-pressed). */
+/* Category filter buttons (JS toggles aria-pressed). */
 .filter-btn {
   color: var(--color-muted);
   transition: color 0.3s ease;
@@ -326,7 +323,109 @@ html.has-cursor .cursor {
   text-decoration: underline;
   text-underline-offset: 6px;
   text-decoration-thickness: 2px;
-  text-decoration-color: var(--cat, var(--color-coral));
+  text-decoration-color: var(--color-accent);
+}
+
+/* ---------- photo detail: arrows, counter, immersive view ---------- */
+
+.detail-arrow {
+  position: fixed;
+  top: 50%;
+  z-index: 20;
+  display: none;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-top: -1.5rem;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-paper) 82%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--color-muted);
+  transition: color 0.3s ease, border-color 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 768px) {
+  .detail-arrow {
+    display: grid;
+  }
+}
+
+.detail-arrow--prev {
+  left: 1.25rem;
+}
+
+.detail-arrow--next {
+  right: 1.25rem;
+}
+
+.detail-arrow:hover {
+  color: var(--color-ink);
+  border-color: var(--color-accent);
+  transform: scale(1.08);
+}
+
+.detail-thumb {
+  width: 3.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+  border-radius: 2px;
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
+}
+
+a:hover .detail-thumb {
+  opacity: 1;
+}
+
+/* Immersive view: the hero takes over the viewport; click again to exit. */
+[data-detail-hero] {
+  touch-action: pan-y;
+}
+
+[data-detail-hero] .photo-img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.is-immersive {
+  position: fixed !important;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: clamp(1rem, 4vw, 3rem);
+  background: var(--color-paper);
+}
+
+.is-immersive [data-zoom-toggle] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+}
+
+.is-immersive .photo-media {
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+  aspect-ratio: auto !important;
+  background-image: none !important;
+  overflow: visible !important;
+}
+
+.is-immersive .photo-img {
+  position: static !important;
+  object-fit: contain !important;
+}
+
+html.immersive-open,
+html.immersive-open body {
+  overflow: hidden;
 }
 
 /* No JS or reduced motion: never hide content. */

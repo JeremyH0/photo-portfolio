@@ -42,6 +42,9 @@ type UIStrings = {
   prev: string;
   next: string;
   view: string;
+  zoom: string;
+  close: string;
+  counterOf: string;
 };
 
 export const ui: Record<LocaleCode, UIStrings> = {
@@ -57,6 +60,9 @@ export const ui: Record<LocaleCode, UIStrings> = {
     prev: 'Previous',
     next: 'Next',
     view: 'View',
+    zoom: 'Zoom',
+    close: 'Close',
+    counterOf: 'of',
   },
   ja: {
     work: '作品',
@@ -70,6 +76,9 @@ export const ui: Record<LocaleCode, UIStrings> = {
     prev: '前へ',
     next: '次へ',
     view: '見る',
+    zoom: '拡大',
+    close: '閉じる',
+    counterOf: '/',
   },
   zh: {
     work: '作品',
@@ -83,6 +92,9 @@ export const ui: Record<LocaleCode, UIStrings> = {
     prev: '上一张',
     next: '下一张',
     view: '查看',
+    zoom: '放大',
+    close: '关闭',
+    counterOf: '/',
   },
   'zh-tw': {
     work: '作品',
@@ -96,6 +108,9 @@ export const ui: Record<LocaleCode, UIStrings> = {
     prev: '上一張',
     next: '下一張',
     view: '查看',
+    zoom: '放大',
+    close: '關閉',
+    counterOf: '/',
   },
 };
 

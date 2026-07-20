@@ -21,7 +21,15 @@ import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 gsap.registerPlugin(MorphSVGPlugin);
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const ACCENTS = ['#ff4b24', '#2743ff', '#ffb400'];
+
+/** Theme accent pair, read live so dark/light both look right. */
+function accentColors(): [string, string] {
+  const styles = getComputedStyle(document.documentElement);
+  return [
+    styles.getPropertyValue('--color-accent').trim() || '#33628f',
+    styles.getPropertyValue('--color-accent-soft').trim() || '#a9c6df',
+  ];
+}
 
 /* ---------------- helpers ---------------- */
 
@@ -206,6 +214,51 @@ function initMenu(container: HTMLElement) {
   );
 }
 
+function initDetail(container: HTMLElement) {
+  const hero = container.querySelector<HTMLElement>('[data-detail-hero]');
+  const zoomBtn = hero?.querySelector<HTMLElement>('[data-zoom-toggle]');
+  if (!hero || !zoomBtn) return;
+  const zoomLabel = zoomBtn.dataset.cursorLabel ?? '';
+  const closeLabel = zoomBtn.dataset.closeLabel ?? zoomLabel;
+
+  // Native image drag swallows pointerup and kills the swipe gesture.
+  hero.querySelectorAll('img').forEach((img) => (img.draggable = false));
+
+  const setImmersive = (open: boolean) => {
+    hero.classList.toggle('is-immersive', open);
+    document.documentElement.classList.toggle('immersive-open', open);
+    const label = open ? closeLabel : zoomLabel;
+    zoomBtn.dataset.cursorLabel = label;
+    zoomBtn.setAttribute('aria-label', label);
+    // The cursor badge is likely showing over the image right now — update it.
+    cursorEl?.querySelector('.cursor-label')?.replaceChildren(document.createTextNode(label));
+    if (!reducedMotion) gsap.fromTo(hero, { autoAlpha: 0.6 }, { autoAlpha: 1, duration: 0.35 });
+  };
+
+  // Tap = zoom toggle; horizontal drag = previous/next photo.
+  let startX = 0;
+  let startY = 0;
+  let swiped = false;
+  zoomBtn.addEventListener('pointerdown', (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    swiped = false;
+  });
+  zoomBtn.addEventListener('pointerup', (e) => {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      swiped = true;
+      const dir = dx > 0 ? 'prev' : 'next';
+      container.querySelector<HTMLAnchorElement>(`[data-nav-dir="${dir}"]`)?.click();
+    }
+  });
+  zoomBtn.addEventListener('click', () => {
+    if (swiped) return;
+    setImmersive(!hero.classList.contains('is-immersive'));
+  });
+}
+
 function initPage(container: HTMLElement) {
   // Barba also fires afterEnter for the initial load — never init twice
   // (double-bound listeners made one burger tap open AND close the menu).
@@ -215,6 +268,7 @@ function initPage(container: HTMLElement) {
   initFilter(container);
   initBackToTop(container);
   initMenu(container);
+  initDetail(container);
   initHero(container);
   initReveals(container);
 }
@@ -263,12 +317,7 @@ function initCursor() {
     const interactive = target?.closest('a, button, [data-cursor-label]');
     cursor.classList.toggle('is-view', !!labelled);
     cursor.classList.toggle('is-hover', !!interactive && !labelled);
-    if (labelled) {
-      label.textContent = labelled.dataset.cursorLabel ?? '';
-      const card = labelled.closest<HTMLElement>('.photo-card');
-      const accent = card ? getComputedStyle(card).getPropertyValue('--cat') : '';
-      cursor.style.setProperty('--cursor-accent', accent.trim() || ACCENTS[0]);
-    }
+    if (labelled) label.textContent = labelled.dataset.cursorLabel ?? '';
   };
 
   document.addEventListener('pointerover', (e) => setState(e.target as Element));
@@ -284,13 +333,6 @@ function initCursor() {
 const cursorEl = initCursor();
 
 /* ---------------- transitions ---------------- */
-
-let accentIndex = 0;
-
-function nextAccent(): string {
-  accentIndex = (accentIndex + 1) % ACCENTS.length;
-  return ACCENTS[accentIndex];
-}
 
 /**
  * Curved wave sweep, adapted from GreenSock's "morphSVG curve manipulation"
@@ -311,10 +353,9 @@ const wavePath = waveSvg?.querySelector<SVGPathElement>('.transition-wave__path'
 const waveStops = waveSvg?.querySelectorAll<SVGStopElement>('.transition-wave__stop');
 
 function waveIn(): gsap.core.Timeline {
-  const accent = nextAccent();
-  const partner = ACCENTS[(ACCENTS.indexOf(accent) + 1) % ACCENTS.length];
+  const [accent, soft] = accentColors();
   waveStops?.[0]?.setAttribute('stop-color', accent);
-  waveStops?.[1]?.setAttribute('stop-color', partner);
+  waveStops?.[1]?.setAttribute('stop-color', soft);
   const tl = gsap.timeline({ defaults: { duration: 0.5 } });
   tl.set(waveSvg!, { visibility: 'visible' })
     .set(wavePath!, { attr: { d: WAVE.hidden } })
@@ -490,8 +531,9 @@ function initBarba() {
 
   barba.hooks.after(() => {
     document.documentElement.classList.remove('is-transitioning');
-    // The old container (and its open menu) is gone — release the scroll lock.
-    document.documentElement.classList.remove('menu-open');
+    // The old container (with its open menu / immersive view) is gone —
+    // release the scroll locks.
+    document.documentElement.classList.remove('menu-open', 'immersive-open');
     // The hovered element is gone after a swap — reset cursor state.
     cursorEl?.classList.remove('is-view', 'is-hover');
   });
@@ -503,8 +545,13 @@ const firstContainer = document.querySelector<HTMLElement>('[data-barba="contain
 if (firstContainer) initPage(firstContainer);
 if (!reducedMotion) initBarba();
 
-// Arrow keys navigate between photos on detail pages.
+// Arrow keys navigate between photos; Escape exits the immersive view.
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const immersive = document.querySelector<HTMLElement>('.is-immersive [data-zoom-toggle]');
+    if (immersive) immersive.click();
+    return;
+  }
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
   const dir = e.key === 'ArrowLeft' ? 'prev' : 'next';
   document.querySelector<HTMLAnchorElement>(`[data-nav-dir="${dir}"]`)?.click();

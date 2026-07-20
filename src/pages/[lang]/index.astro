@@ -3,7 +3,6 @@ import Layout from '../../layouts/Layout.astro';
 import PhotoCard from '../../components/PhotoCard.astro';
 import { getLocalePaths, l, ui, type LocaleCode } from '../../i18n/locales';
 import { getCategories, getPhotos, getSiteSettings } from '../../lib/queries';
-import { accentFor } from '../../lib/accents';
 
 export function getStaticPaths() {
   return getLocalePaths();
@@ -17,8 +16,6 @@ const [photos, categories, settings] = await Promise.all([
   getCategories(),
   getSiteSettings(),
 ]);
-
-const accent = accentFor(categories);
 
 // Editorial 12-column rhythm: wide / narrow-offset pairs, repeating every 6.
 const pattern = [
@@ -44,7 +41,7 @@ const pattern = [
       {t.tagline}
     </p>
     <h1 class="hero-title font-serif text-[clamp(3rem,11vw,9.5rem)] leading-[0.98] tracking-[-0.01em]">
-      <span data-split>{settings.photographerName}</span><span class="text-coral">.</span>
+      <span data-split>{settings.photographerName}</span><span class="text-accent">.</span>
     </h1>
   </section>
 
@@ -58,13 +55,7 @@ const pattern = [
     </button>
     {
       categories.map((cat) => (
-        <button
-          type="button"
-          class="filter-btn"
-          data-filter={cat.slug}
-          aria-pressed="false"
-          style={`--cat: ${accent(cat.slug)}`}
-        >
+        <button type="button" class="filter-btn" data-filter={cat.slug} aria-pressed="false">
           {l(cat.title, lang)}
         </button>
       ))
@@ -81,7 +72,6 @@ const pattern = [
           class={pattern[i % pattern.length].span}
           sizes={pattern[i % pattern.length].sizes}
           eager={i < 2}
-          accent={accent(photo.category?.slug)}
         />
       ))
     }
