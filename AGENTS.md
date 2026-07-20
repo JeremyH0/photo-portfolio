@@ -1,22 +1,107 @@
-## Development
+# Photo Portfolio — Site
 
-When starting the dev server, use background mode:
+Astro site for Nick's photography portfolio, built by Jeremy. Full project
+context (stack, rules, Sanity data model, pending tasks) lives in the
+**sibling repo** `../photo-portfolio-studio/CLAUDE.md` — read that first.
+This file covers the site's own architecture so a new session can jump
+straight into changes.
 
-```
-astro dev --background
-```
+## Live
+- https://photo-portfolio-d1s.pages.dev — Cloudflare Pages, auto-deploys on
+  push to `main` (no CI config needed, it's a dashboard-connected GitHub
+  integration). Check deploy status via the GitHub check-runs API on the
+  latest commit, or the Cloudflare dashboard.
+- Local dev: `npm run dev` → localhost:4321. Preview a production build:
+  `npm run build && npx astro preview --port 4399` (4321 may be occupied by
+  a stale background server — check `lsof -iTCP -sTCP:LISTEN` first).
 
-Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
+## Architecture
 
-## Documentation
+**i18n**: 4 locales — `en` (default), `ja`, `zh` (Simplified), `zh-tw`
+(Traditional). Routes are `/[lang]/`, `/[lang]/about/`,
+`/[lang]/photo/[id]/`, root redirects to `/en/`. Single source of truth:
+`src/i18n/locales.ts` (`locales` array, `ui` strings record, `l()` helper
+for pulling a field out of a Sanity localized object). Mirror any new
+locale in `astro.config.mjs` (`i18n.locales`) and the Studio's
+`schemaTypes/supportedLanguages.ts`.
 
-Full documentation: https://docs.astro.build
+**Data layer**: `src/lib/sanity.ts` (client), `src/lib/queries.ts` (GROQ +
+types), `src/lib/image.ts` (`urlFor`/`srcsetFor` — always route images
+through these, never raw Sanity URLs). Env vars `SANITY_PROJECT_ID` /
+`SANITY_DATASET` via `.env` (see `.env.example`).
 
-Consult these guides before working on related tasks:
+**Albums**: a Sanity `category` doubles as an "album." The gallery
+(`/[lang]/`) filters by category client-side. Photo detail pages
+(`/[lang]/photo/[id]/`) are album-scoped — prev/next/counter/swipe all stay
+within the photo's own album; an album-switcher tab row at the top jumps to
+another album's first photo. Logic lives in `getStaticPaths()` in
+`src/pages/[lang]/photo/[id].astro` (groups photos by category, computes
+per-album index/prev/next at build time).
 
-- [Adding pages, dynamic routes, or middleware](https://docs.astro.build/en/guides/routing/)
-- [Working with Astro components](https://docs.astro.build/en/basics/astro-components/)
-- [Using React, Vue, Svelte, or other framework components](https://docs.astro.build/en/guides/framework-components/)
-- [Adding or managing content](https://docs.astro.build/en/guides/content-collections/)
-- [Adding styles or using Tailwind](https://docs.astro.build/en/guides/styling/)
-- [Supporting multiple languages](https://docs.astro.build/en/guides/internationalization/)
+**Design system** (`src/styles/global.css`, Tailwind v4 `@theme`):
+Currently the **"champagne" (light) / "velvet" (dark)** palette — warm
+alabaster paper + espresso ink + brass/gold accent in light,
+brown-black + ivory + champagne gold in dark. One accent pair only
+(`--color-accent` / `--color-accent-soft`), themed via
+`:root[data-theme="dark"]`. **This has been reworked multiple times per
+Jeremy's taste** (started colorful 3-accent, went minimalist blue, now
+champagne/gold) — if asked to change it again, it's contained entirely to
+that `@theme` block plus the two SVG gradient `<stop>` colors in
+`Layout.astro`. Theme toggle persists to `localStorage`, defaults to system
+preference, applied pre-paint (no FOUC).
+
+**Interactions**:
+- Custom cursor (`.cursor` in `Layout.astro`, logic in `initCursor()` in
+  `src/scripts/app.ts`): dot + trailing ring, both gold/accent-colored;
+  grows over links; shows a localized text badge (View/Zoom/Close) over
+  labelled elements (`data-cursor-label` attribute). Fine pointers only.
+- Scroll parallax (`initParallax`): hero title + gallery images drift at
+  different speeds via one shared `requestAnimationFrame` loop
+  (`parallaxItems` array, rebuilt per page in `initPage`).
+- Hover on gallery images (`initHoverParallax`): zoom-in inside the frame +
+  lean toward the pointer, folded into the same transform the scroll
+  parallax writes (via `img.dataset.hoverScale`) so the two never fight.
+- Mobile hamburger menu (`initMenu`): full-screen, clip-path reveal,
+  numbered serif links, scroll-locked.
+- Photo detail immersive zoom (`initDetail`): click the image to fill the
+  viewport (contain, not crop); Esc or click again to exit; swipe
+  left/right (works with mouse drag too) navigates within the album.
+
+**Page transitions** (Barba.js + GSAP, `src/scripts/app.ts`) — a family of
+five, not one style everywhere:
+1. `flip-photo` — clicking a gallery photo: the image itself flies/expands
+   into the detail page hero (shared-element FLIP, `.flip-clone`).
+2. `photo-slide` — prev/next inside an album: fast horizontal slide.
+3. `wave-top` — leaving a photo page back to a section: the wave transition
+   below, but mirrored (drops from top) and 1.35× faster.
+4. `wave` — any other section change (Work ↔ About): a curved SVG wave
+   sweeps up from the bottom and off the top, adapted from GreenSock's
+   "morphSVG curve manipulation" CodePen (`EaKpEpJ`); gradient uses the live
+   theme accent colors, not hardcoded ones.
+5. `soft` — same page, different language: quick scale-down + rise.
+
+Each transition is a `custom:` predicate on `{current, next, trigger}` —
+they're mutually exclusive by namespace/trigger checks, order matters in
+the `transitions:` array. `prefers-reduced-motion` disables Barba entirely
+(plain multi-page nav) and disables the cursor/parallax/hover-zoom.
+
+**Gotcha**: Barba fires `afterEnter` for the *initial* page load, not just
+client-side navigations. `initPage()` guards against double-init via
+`container.dataset.appInit` — don't remove this guard, it silently causes
+double-bound listeners (broke the hamburger toggle once, duplicated
+animations).
+
+## Verification habit
+Before calling a visual/interactive change done: build (`npm run build`),
+then drive it with Playwright across desktop + tablet + mobile viewports
+(screenshot key states, assert on computed styles/classes, check for
+console/page errors) rather than eyeballing dev server only. Playwright/
+Chromium aren't repo dependencies — install them in the scratchpad
+(`npm i playwright && npx playwright install chromium`) each session. This
+has caught real bugs (the double-init above; native image drag swallowing
+swipe gestures) that would've shipped otherwise.
+
+## Astro basics
+- `astro dev --background` to run detached; `astro dev stop/status/logs` to manage.
+- Docs: https://docs.astro.build (routing, components, framework components,
+  content collections, styling, i18n guides linked from there).
