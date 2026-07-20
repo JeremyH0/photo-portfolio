@@ -272,7 +272,9 @@ function updateParallax() {
     if (rect.bottom < -160 || rect.top > vh + 160) continue;
     const progress = (rect.top + rect.height / 2 - vh / 2) / vh;
     const shift = (-progress * speed * 100).toFixed(2);
-    el.style.transform = `translate3d(0, ${shift}px, 0)${scale !== 1 ? ` scale(${scale})` : ''}`;
+    // Hover zoom multiplies the base over-scale (see initHoverParallax).
+    const total = scale * parseFloat(el.dataset.hoverScale ?? '1');
+    el.style.transform = `translate3d(0, ${shift}px, 0)${total !== 1 ? ` scale(${total.toFixed(4)})` : ''}`;
   }
   parallaxTicking = false;
 }
@@ -303,22 +305,34 @@ function initParallax(container: HTMLElement) {
   updateParallax();
 }
 
-/** Hover parallax: the image leans gently toward the pointer. */
+/** Hover: the image zooms in inside its frame and leans toward the pointer. */
 function initHoverParallax(container: HTMLElement) {
   if (reducedMotion || !window.matchMedia('(hover: hover)').matches) return;
   container.querySelectorAll<HTMLElement>('.photo-card a').forEach((link) => {
     const media = link.querySelector<HTMLElement>('.photo-media');
-    if (!media) return;
-    const toX = gsap.quickTo(media, 'x', { duration: 0.4, ease: 'power3' });
-    const toY = gsap.quickTo(media, 'y', { duration: 0.4, ease: 'power3' });
+    const img = link.querySelector<HTMLElement>('.photo-img');
+    if (!media || !img) return;
+    const toX = gsap.quickTo(media, 'x', { duration: 0.7, ease: 'power3' });
+    const toY = gsap.quickTo(media, 'y', { duration: 0.7, ease: 'power3' });
+    // Zoom is folded into the scroll-parallax transform via dataset so the
+    // two effects never overwrite each other.
+    const zoom = { v: 1 };
+    const applyZoom = () => {
+      img.dataset.hoverScale = zoom.v.toFixed(4);
+      requestParallax();
+    };
+    link.addEventListener('pointerenter', () => {
+      gsap.to(zoom, { v: 1.09, duration: 0.9, ease: 'power3.out', onUpdate: applyZoom });
+    });
     link.addEventListener('pointermove', (e) => {
       const rect = link.getBoundingClientRect();
-      toX(((e.clientX - rect.left) / rect.width - 0.5) * 14);
-      toY(((e.clientY - rect.top) / rect.height - 0.5) * 14);
+      toX(((e.clientX - rect.left) / rect.width - 0.5) * 26);
+      toY(((e.clientY - rect.top) / rect.height - 0.5) * 26);
     });
     link.addEventListener('pointerleave', () => {
       toX(0);
       toY(0);
+      gsap.to(zoom, { v: 1, duration: 0.7, ease: 'power3.out', onUpdate: applyZoom });
     });
   });
 }
