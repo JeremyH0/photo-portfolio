@@ -1,5 +1,7 @@
 ---
 import '../styles/global.css';
+import '@fontsource-variable/space-grotesk';
+import spaceGroteskUrl from '@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2?url';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { localePathPattern, locales, ui, type LocaleCode } from '../i18n/locales';
@@ -30,6 +32,7 @@ const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
     <meta name="description" content={description ?? ui[lang].metaDescription} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://cdn.sanity.io" crossorigin />
+    <link rel="preload" href={spaceGroteskUrl} as="font" type="font/woff2" crossorigin />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
     {
       locales.map((loc) => (

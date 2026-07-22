@@ -6,9 +6,10 @@
  * Transition map:
  *  - gallery → photo (clicked card): shared-element FLIP — the clicked image
  *    flies and expands into the detail page hero.
- *  - photo → photo (prev/next): directional horizontal slide.
- *  - section change: layered slats curtain (accent wave + dark wave) carrying
- *    the destination page name, while the old page sinks back.
+ *  - photo → photo (prev/next): the wave sweeps horizontally in the travel
+ *    direction (next: left → right, prev: right → left).
+ *  - section change: curved wave sweep rising from the bottom (dropping from
+ *    the top when leaving a photo).
  *  - same page, other language: quick scale-down + rise.
  *
  * prefers-reduced-motion: Barba, reveals and the custom cursor are all
@@ -17,6 +18,7 @@
 import barba from '@barba/core';
 import gsap from 'gsap';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
+import 'photoswipe/style.css';
 
 gsap.registerPlugin(MorphSVGPlugin);
 
@@ -214,28 +216,75 @@ function initMenu(container: HTMLElement) {
   );
 }
 
+type LightboxData = {
+  index: number;
+  labels: { zoom: string; close: string; prev: string; next: string };
+  photos: {
+    url: string;
+    src: string;
+    srcset: string;
+    width: number;
+    height: number;
+    msrc: string;
+    alt: string;
+  }[];
+};
+
+/** PhotoSwipe is only loaded the first time the viewer is opened. */
+let lightboxModule: Promise<typeof import('photoswipe/lightbox')> | null = null;
+
 function initDetail(container: HTMLElement) {
   const hero = container.querySelector<HTMLElement>('[data-detail-hero]');
   const zoomBtn = hero?.querySelector<HTMLElement>('[data-zoom-toggle]');
-  if (!hero || !zoomBtn) return;
-  const zoomLabel = zoomBtn.dataset.cursorLabel ?? '';
-  const closeLabel = zoomBtn.dataset.closeLabel ?? zoomLabel;
+  const dataEl = container.querySelector<HTMLScriptElement>('[data-lightbox-data]');
+  if (!hero || !zoomBtn || !dataEl) return;
+  const data: LightboxData = JSON.parse(dataEl.textContent ?? '{}');
 
   // Native image drag swallows pointerup and kills the swipe gesture.
   hero.querySelectorAll('img').forEach((img) => (img.draggable = false));
 
-  const setImmersive = (open: boolean) => {
-    hero.classList.toggle('is-immersive', open);
-    document.documentElement.classList.toggle('immersive-open', open);
-    const label = open ? closeLabel : zoomLabel;
-    zoomBtn.dataset.cursorLabel = label;
-    zoomBtn.setAttribute('aria-label', label);
-    // The cursor badge is likely showing over the image right now — update it.
-    cursorEl?.querySelector('.cursor-label')?.replaceChildren(document.createTextNode(label));
-    if (!reducedMotion) gsap.fromTo(hero, { autoAlpha: 0.6 }, { autoAlpha: 1, duration: 0.35 });
+  const openLightbox = async () => {
+    lightboxModule ??= import('photoswipe/lightbox');
+    const { default: PhotoSwipeLightbox } = await lightboxModule;
+
+    const lightbox = new PhotoSwipeLightbox({
+      dataSource: data.photos,
+      pswpModule: () => import('photoswipe'),
+      bgOpacity: 1,
+      wheelToZoom: true,
+      showHideAnimationType: reducedMotion ? 'none' : 'zoom',
+      closeTitle: data.labels.close,
+      zoomTitle: data.labels.zoom,
+      arrowPrevTitle: data.labels.prev,
+      arrowNextTitle: data.labels.next,
+    });
+    // Open/close zooms from/to the hero — but only for this page's own photo;
+    // after swiping to another one the close falls back to a fade.
+    lightbox.addFilter('thumbEl', (thumbEl, _itemData, index) => {
+      const heroImg = hero.querySelector('img');
+      return index === data.index && heroImg ? heroImg : (thumbEl as HTMLElement);
+    });
+
+    let lastIndex = data.index;
+    lightbox.on('change', () => {
+      lastIndex = lightbox.pswp?.currIndex ?? lastIndex;
+    });
+    lightbox.on('destroy', () => {
+      if (lastIndex === data.index) return;
+      // The viewer closed on a different photo: catch the page up, waving in
+      // the direction the user was browsing (shorter way around the loop).
+      const len = data.photos.length;
+      const forward = (lastIndex - data.index + len) % len;
+      pendingNavDir = forward <= len - forward ? 'next' : 'prev';
+      const url = data.photos[lastIndex].url;
+      if (reducedMotion) location.assign(url);
+      else barba.go(url);
+    });
+    lightbox.init();
+    lightbox.loadAndOpen(data.index);
   };
 
-  // Tap = zoom toggle; horizontal drag = previous/next photo.
+  // Tap = open the fullscreen viewer; horizontal drag = previous/next photo.
   let startX = 0;
   let startY = 0;
   let swiped = false;
@@ -255,7 +304,7 @@ function initDetail(container: HTMLElement) {
   });
   zoomBtn.addEventListener('click', () => {
     if (swiped) return;
-    setImmersive(!hero.classList.contains('is-immersive'));
+    void openLightbox();
   });
 }
 
@@ -428,49 +477,94 @@ const WAVE = {
   gone: 'M 0 0 V 0 Q 50 0 100 0 V 0 z',
 };
 
+// Transpose of WAVE: sweeps left → right ('right' mirrors it via scaleX).
+const WAVE_H = {
+  hidden: 'M 0 0 H 0 Q 0 50 0 100 H 0 z',
+  mid: 'M 0 0 H 50 Q 100 50 50 100 H 0 z',
+  cover: 'M 0 0 H 100 Q 100 50 100 100 H 0 z',
+  midOut: 'M 100 0 H 50 Q 0 50 50 100 H 100 z',
+  gone: 'M 100 0 H 100 Q 100 50 100 100 H 100 z',
+};
+
 const waveSvg = document.querySelector<SVGSVGElement>('.transition-wave');
 const wavePath = waveSvg?.querySelector<SVGPathElement>('.transition-wave__path');
 const waveStops = waveSvg?.querySelectorAll<SVGStopElement>('.transition-wave__stop');
 
-type WaveOptions = { from?: 'bottom' | 'top'; speed?: number };
+const WAVE_STEP = 0.32; // per-morph duration at speed 1
+
+type WaveOptions = { from?: 'bottom' | 'top' | 'left' | 'right'; speed?: number };
+
+// waveOut must finish on the same axis waveIn started on.
+let waveKeyframes = WAVE;
 
 function waveIn({ from = 'bottom', speed = 1 }: WaveOptions = {}): gsap.core.Timeline {
   const [accent, soft] = accentColors();
   waveStops?.[0]?.setAttribute('stop-color', accent);
   waveStops?.[1]?.setAttribute('stop-color', soft);
-  const tl = gsap.timeline({ defaults: { duration: 0.45 / speed } });
-  tl.set(waveSvg!, { visibility: 'visible', scaleY: from === 'top' ? -1 : 1 })
-    .set(wavePath!, { attr: { d: WAVE.hidden } })
-    .to(wavePath!, { morphSVG: WAVE.mid, ease: 'power2.in' })
-    .to(wavePath!, { morphSVG: WAVE.cover, ease: 'power2.out' });
+  waveKeyframes = from === 'left' || from === 'right' ? WAVE_H : WAVE;
+  waveSvg!.dataset.waveFrom = from; // observable in tests/devtools
+  const tl = gsap.timeline({ defaults: { duration: WAVE_STEP / speed } });
+  tl.set(waveSvg!, {
+    visibility: 'visible',
+    scaleY: from === 'top' ? -1 : 1,
+    scaleX: from === 'right' ? -1 : 1,
+  })
+    .set(wavePath!, { attr: { d: waveKeyframes.hidden } })
+    .to(wavePath!, { morphSVG: waveKeyframes.mid, ease: 'power2.in' })
+    .to(wavePath!, { morphSVG: waveKeyframes.cover, ease: 'power2.out' });
   return tl;
 }
 
 function waveOut({ speed = 1 }: WaveOptions = {}): gsap.core.Timeline {
-  const tl = gsap.timeline({ defaults: { duration: 0.45 / speed } });
-  tl.to(wavePath!, { morphSVG: WAVE.midOut, ease: 'power2.in' })
-    .to(wavePath!, { morphSVG: WAVE.gone, ease: 'power2.out' })
-    .set(waveSvg!, { visibility: 'hidden', scaleY: 1 })
-    .set(wavePath!, { attr: { d: WAVE.hidden } });
+  const kf = waveKeyframes;
+  const tl = gsap.timeline({ defaults: { duration: WAVE_STEP / speed } });
+  tl.to(wavePath!, { morphSVG: kf.midOut, ease: 'power2.in' })
+    .to(wavePath!, { morphSVG: kf.gone, ease: 'power2.out' })
+    .set(waveSvg!, { visibility: 'hidden', scaleY: 1, scaleX: 1 })
+    .set(wavePath!, { attr: { d: kf.hidden } });
   return tl;
 }
 
+/*
+ * Barba resolves the transition BEFORE the next page is fetched, so
+ * `next.namespace` is only populated on cache hits — a predicate built on it
+ * silently falls back to another transition on every first visit. All
+ * predicates below therefore decide from `current` + the clicked trigger
+ * only. (Among equal-priority custom transitions Barba also checks the
+ * LAST-defined first, so they must stay mutually exclusive.)
+ */
 function photoLinkFrom(trigger: unknown): HTMLElement | null {
   return trigger instanceof HTMLElement ? trigger.closest('[data-photo-link]') : null;
 }
 
+function navDirFrom(trigger: unknown): HTMLElement | null {
+  return trigger instanceof HTMLElement ? trigger.closest('[data-nav-dir]') : null;
+}
+
+/** Locale switcher links are the ones carrying a `lang` attribute. */
+function isLangSwitch(trigger: unknown): boolean {
+  return trigger instanceof HTMLElement && trigger.closest('a[lang]') !== null;
+}
+
 /** FLIP state shared between leave and enter of the gallery → photo transition. */
 let flipClone: HTMLImageElement | null = null;
+
+/**
+ * Direction override for the next photo→photo transition. Set by the
+ * lightbox when it closes on a different photo than it opened on (there the
+ * Barba trigger is programmatic, so `[data-nav-dir]` detection can't work).
+ */
+let pendingNavDir: 'prev' | 'next' | null = null;
 
 function initBarba() {
   barba.init({
     prevent: ({ el }) => el.hasAttribute('data-no-barba'),
     transitions: [
       {
-        // Clicked photo card: the image itself flies into the detail page.
+        // Clicked photo card (gallery only, always leads to a photo page):
+        // the image itself flies into the detail page.
         name: 'flip-photo',
-        custom: ({ next, trigger }) =>
-          next.namespace === 'photo' && photoLinkFrom(trigger) !== null,
+        custom: ({ trigger }) => photoLinkFrom(trigger) !== null,
         async leave({ current, trigger }) {
           const link = photoLinkFrom(trigger)!;
           const img = link.querySelector('img')!;
@@ -507,7 +601,7 @@ function initBarba() {
               left: target.left,
               width: target.width,
               height: target.height,
-              duration: 0.8,
+              duration: 0.65,
               ease: 'power4.inOut',
             });
           }
@@ -522,38 +616,49 @@ function initBarba() {
         },
       },
       {
-        // Prev/next between photos: directional slide.
+        // Prev/next between photos: the wave sweeps in the travel direction —
+        // next pushes left → right, prev right → left. A subtle drift of the
+        // page underneath follows the sweep.
         name: 'photo-slide',
-        custom: ({ current, next }) =>
-          current.namespace === 'photo' && next.namespace === 'photo',
+        custom: ({ current, trigger }) =>
+          current.namespace === 'photo' &&
+          (pendingNavDir !== null || navDirFrom(trigger) !== null),
         async leave({ current, trigger }) {
           const dir =
-            trigger instanceof HTMLElement && trigger.closest('[data-nav-dir="prev"]') ? -1 : 1;
-          (current.container as HTMLElement).dataset.slideDir = String(dir);
-          await gsap.to(current.container, {
-            xPercent: -5 * dir,
-            autoAlpha: 0,
-            duration: 0.26,
+            pendingNavDir ??
+            (trigger instanceof HTMLElement && trigger.closest('[data-nav-dir="prev"]')
+              ? 'prev'
+              : 'next');
+          pendingNavDir = null;
+          (current.container as HTMLElement).dataset.slideDir = dir;
+          gsap.to(current.container, {
+            xPercent: dir === 'prev' ? -2.5 : 2.5,
+            duration: (WAVE_STEP * 2) / 1.6,
             ease: 'power2.in',
           });
+          await waveIn({ from: dir === 'prev' ? 'right' : 'left', speed: 1.6 });
         },
         enter({ current, next }) {
           window.scrollTo(0, 0);
-          const dir = Number((current.container as HTMLElement).dataset.slideDir ?? 1);
+          const dir = (current.container as HTMLElement).dataset.slideDir ?? 'next';
           return gsap.from(next.container, {
-            xPercent: 5 * dir,
-            autoAlpha: 0,
-            duration: 0.34,
+            xPercent: dir === 'prev' ? 2.5 : -2.5,
+            duration: (WAVE_STEP * 2) / 1.6,
             ease: 'power3.out',
           });
+        },
+        async after() {
+          await waveOut({ speed: 1.6 });
         },
       },
       {
         // Leaving a photo back to a section: the same wave language, but
         // mirrored — it drops from the top and moves quicker.
         name: 'wave-top',
-        custom: ({ current, next }) =>
-          current.namespace === 'photo' && next.namespace !== 'photo',
+        custom: ({ current, trigger }) =>
+          current.namespace === 'photo' &&
+          pendingNavDir === null &&
+          navDirFrom(trigger) === null,
         async leave() {
           await waveIn({ from: 'top', speed: 1.35 });
         },
@@ -569,10 +674,10 @@ function initBarba() {
         // The wave covers the old page, the swap happens beneath it, then
         // the wave continues off the top revealing the new page.
         name: 'wave',
-        custom: ({ current, next, trigger }) =>
-          current.namespace !== next.namespace &&
+        custom: ({ current, trigger }) =>
           current.namespace !== 'photo' &&
-          !(next.namespace === 'photo' && photoLinkFrom(trigger) !== null),
+          photoLinkFrom(trigger) === null &&
+          !isLangSwitch(trigger),
         async leave() {
           await waveIn();
         },
@@ -590,7 +695,7 @@ function initBarba() {
           await gsap.to(current.container, {
             scale: 0.98,
             autoAlpha: 0,
-            duration: 0.4,
+            duration: 0.3,
             ease: 'power2.in',
           });
         },
@@ -599,7 +704,7 @@ function initBarba() {
           return gsap.from(next.container, {
             y: 28,
             autoAlpha: 0,
-            duration: 0.55,
+            duration: 0.42,
             ease: 'power3.out',
           });
         },
@@ -635,9 +740,8 @@ function initBarba() {
 
   barba.hooks.after(() => {
     document.documentElement.classList.remove('is-transitioning');
-    // The old container (with its open menu / immersive view) is gone —
-    // release the scroll locks.
-    document.documentElement.classList.remove('menu-open', 'immersive-open');
+    // The old container (with its open menu) is gone — release the scroll lock.
+    document.documentElement.classList.remove('menu-open');
     // The hovered element is gone after a swap — reset cursor state.
     cursorEl?.classList.remove('is-view', 'is-hover');
   });
@@ -649,13 +753,10 @@ const firstContainer = document.querySelector<HTMLElement>('[data-barba="contain
 if (firstContainer) initPage(firstContainer);
 if (!reducedMotion) initBarba();
 
-// Arrow keys navigate between photos; Escape exits the immersive view.
+// Arrow keys navigate between photos. While the lightbox is open PhotoSwipe
+// owns the keyboard (Escape and arrows) — don't also navigate underneath it.
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const immersive = document.querySelector<HTMLElement>('.is-immersive [data-zoom-toggle]');
-    if (immersive) immersive.click();
-    return;
-  }
+  if (document.querySelector('.pswp')) return;
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
   const dir = e.key === 'ArrowLeft' ? 'prev' : 'next';
   document.querySelector<HTMLAnchorElement>(`[data-nav-dir="${dir}"]`)?.click();

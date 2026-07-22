@@ -50,6 +50,12 @@ that `@theme` block plus the two SVG gradient `<stop>` colors in
 `Layout.astro`. Theme toggle persists to `localStorage`, defaults to system
 preference, applied pre-paint (no FOUC).
 
+**Typography**: Space Grotesk (self-hosted variable font via
+`@fontsource-variable/space-grotesk`, imported + preloaded in
+`Layout.astro`) is the single site-wide face — `--font-serif` just aliases
+`--font-sans`. Space Grotesk is Latin-only; the CJK fallback chain in
+`--font-sans` must stay for ja/zh/zh-tw.
+
 **Interactions**:
 - Custom cursor (`.cursor` in `Layout.astro`, logic in `initCursor()` in
   `src/scripts/app.ts`): dot + trailing ring, both gold/accent-colored;
@@ -63,15 +69,24 @@ preference, applied pre-paint (no FOUC).
   parallax writes (via `img.dataset.hoverScale`) so the two never fight.
 - Mobile hamburger menu (`initMenu`): full-screen, clip-path reveal,
   numbered serif links, scroll-locked.
-- Photo detail immersive zoom (`initDetail`): click the image to fill the
-  viewport (contain, not crop); Esc or click again to exit; swipe
-  left/right (works with mouse drag too) navigates within the album.
+- Photo detail fullscreen viewer (`initDetail`): click the hero to open a
+  PhotoSwipe v5 lightbox over the whole album (lazy-loaded chunk; skinned
+  via `.pswp.pswp` CSS vars in `global.css` — doubled class beats
+  photoswipe.css regardless of bundle order). Real zoom (wheel/pinch/
+  double-tap + pan), swipe between photos without leaving fullscreen,
+  close/counter/arrows built in. Closing on a different photo than it
+  opened on syncs the page via `barba.go` + `pendingNavDir` (directional
+  wave). While `.pswp` is in the DOM the global keydown handler stands down
+  (PhotoSwipe owns Esc + arrows). Swipe/drag directly on the hero (outside
+  the lightbox) still navigates prev/next.
 
 **Page transitions** (Barba.js + GSAP, `src/scripts/app.ts`) — a family of
 five, not one style everywhere:
 1. `flip-photo` — clicking a gallery photo: the image itself flies/expands
    into the detail page hero (shared-element FLIP, `.flip-clone`).
-2. `photo-slide` — prev/next inside an album: fast horizontal slide.
+2. `photo-slide` — prev/next inside an album: the wave, but sweeping
+   horizontally in the travel direction (next: left → right, prev:
+   right → left; `WAVE_H` keyframes) over a subtle 2.5% drift of the page.
 3. `wave-top` — leaving a photo page back to a section: the wave transition
    below, but mirrored (drops from top) and 1.35× faster.
 4. `wave` — any other section change (Work ↔ About): a curved SVG wave
@@ -80,10 +95,15 @@ five, not one style everywhere:
    theme accent colors, not hardcoded ones.
 5. `soft` — same page, different language: quick scale-down + rise.
 
-Each transition is a `custom:` predicate on `{current, next, trigger}` —
-they're mutually exclusive by namespace/trigger checks, order matters in
-the `transitions:` array. `prefers-reduced-motion` disables Barba entirely
-(plain multi-page nav) and disables the cursor/parallax/hover-zoom.
+Each transition is a `custom:` predicate — **built only from
+`current` + `trigger`, never `next`**. Barba resolves the transition
+*before* fetching the next page, so `next.namespace` is empty except on
+cache hits; predicates that read it silently fall back to the wrong
+transition on every first visit (this bug shipped once — vertical wave on
+prev/next). Among equal-priority customs Barba checks the *last-defined
+first*, so keep the predicates mutually exclusive. `prefers-reduced-motion`
+disables Barba entirely (plain multi-page nav) and disables the
+cursor/parallax/hover-zoom (the lightbox still works, minus animations).
 
 **Gotcha**: Barba fires `afterEnter` for the *initial* page load, not just
 client-side navigations. `initPage()` guards against double-init via

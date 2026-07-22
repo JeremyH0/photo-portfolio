@@ -21,3 +21,12 @@ export function srcsetFor(image: SanityImageRef, aspect?: number): string {
     .map((w) => `${urlFor(image, w, aspect ? Math.round(w / aspect) : undefined)} ${w}w`)
     .join(', ');
 }
+
+/** Larger candidates for the fullscreen lightbox, which upgrades on zoom. */
+const LIGHTBOX_WIDTHS = [1080, 1440, 1920, 2560];
+
+export function lightboxSrcset(image: SanityImageRef): string {
+  return LIGHTBOX_WIDTHS.filter((w) => w <= Math.max(image.width, 1080))
+    .map((w) => `${urlFor(image, w)} ${w}w`)
+    .join(', ');
+}

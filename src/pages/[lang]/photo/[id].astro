@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import { getLocalePaths, l, ui, type LocaleCode } from '../../../i18n/locales';
 import { getCategories, getPhotos, getSiteSettings, type Photo } from '../../../lib/queries';
-import { srcsetFor, urlFor } from '../../../lib/image';
+import { lightboxSrcset, srcsetFor, urlFor } from '../../../lib/image';
 
 export async function getStaticPaths() {
   const [photos, categories] = await Promise.all([getPhotos(), getCategories()]);
@@ -32,6 +32,7 @@ export async function getStaticPaths() {
         params: { ...params, id: photo._id },
         props: {
           photo,
+          album,
           index: i + 1,
           total: album.length,
           prev: album[(i - 1 + album.length) % album.length],
@@ -45,6 +46,7 @@ export async function getStaticPaths() {
 
 interface Props {
   photo: Photo;
+  album: Photo[];
   index: number;
   total: number;
   prev: Photo;
@@ -59,7 +61,7 @@ interface Props {
 
 const lang = Astro.params.lang as LocaleCode;
 const t = ui[lang];
-const { photo, index, total, prev, next, albums } = Astro.props;
+const { photo, album, index, total, prev, next, albums } = Astro.props;
 const settings = await getSiteSettings();
 
 const title = l(photo.title, lang);
@@ -67,6 +69,22 @@ const caption = l(photo.caption, lang);
 const albumTitle = l(photo.category?.title, lang);
 const isPortrait = photo.image.height > photo.image.width;
 const pad = (n: number) => String(n).padStart(2, '0');
+
+// Whole album for the fullscreen lightbox: swipe through it without leaving
+// fullscreen, then Barba catches the page up on close.
+const lightbox = {
+  index: index - 1,
+  labels: { zoom: t.zoom, close: t.close, prev: t.prev, next: t.next },
+  photos: album.map((p) => ({
+    url: `/${lang}/photo/${p._id}/`,
+    src: urlFor(p.image, 1920),
+    srcset: lightboxSrcset(p.image),
+    width: p.image.width,
+    height: p.image.height,
+    msrc: p.image.lqip,
+    alt: l(p.title, lang),
+  })),
+};
 ---
 
 <Layout
@@ -134,7 +152,6 @@ const pad = (n: number) => String(n).padStart(2, '0');
         type="button"
         data-zoom-toggle
         data-cursor-label={t.zoom}
-        data-close-label={t.close}
         aria-label={t.zoom}
         class:list={['block w-full', isPortrait ? 'max-w-[62vh]' : '']}
       >
@@ -157,6 +174,13 @@ const pad = (n: number) => String(n).padStart(2, '0');
         </div>
       </button>
     </figure>
+
+    <script
+      is:inline
+      type="application/json"
+      data-lightbox-data
+      set:html={JSON.stringify(lightbox).replaceAll('<', '\\u003c')}
+    />
 
     <div class="mx-auto mt-10 flex max-w-4xl flex-col items-center text-center md:mt-14">
       <p class="detail-reveal text-[0.72rem] uppercase tracking-[0.22em] text-accent">

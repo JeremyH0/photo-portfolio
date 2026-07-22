@@ -11,15 +11,14 @@
   --color-accent: #a87e2f; /* brass */
   --color-accent-soft: #e2c078; /* champagne */
 
+  /* Space Grotesk covers Latin only; CJK locales fall through to the chain. */
   --font-sans:
-    "Helvetica Neue", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Space Grotesk Variable", "Helvetica Neue", "Inter", -apple-system,
+    BlinkMacSystemFont, "Segoe UI",
     "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP",
     "PingFang SC", "Noto Sans SC", "PingFang TC", "Noto Sans TC",
     "Microsoft YaHei", sans-serif;
-  --font-serif:
-    "Iowan Old Style", Georgia, "Times New Roman",
-    "Hiragino Mincho ProN", "Noto Serif JP", "Songti SC", "Noto Serif SC",
-    "Songti TC", "Noto Serif TC", serif;
+  --font-serif: var(--font-sans);
 }
 
 /* "Velvet" (dark): deep brown-black, warm ivory type, champagne gold. */
@@ -366,7 +365,7 @@ a:hover .detail-thumb {
   opacity: 1;
 }
 
-/* Immersive view: the hero takes over the viewport; click again to exit. */
+/* Detail hero: tap opens the PhotoSwipe viewer, horizontal drag navigates. */
 [data-detail-hero] {
   touch-action: pan-y;
 }
@@ -376,44 +375,28 @@ a:hover .detail-thumb {
   user-select: none;
 }
 
-.is-immersive {
-  position: fixed !important;
-  inset: 0;
-  z-index: 45;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: clamp(1rem, 4vw, 3rem);
-  background: var(--color-paper);
+/* PhotoSwipe skinned to the site: paper background, ink icons. Sits below
+   the custom cursor (z 100) so the gold cursor stays visible over it.
+   Doubled class: photoswipe.css sets the same variables on .pswp and its
+   bundle order isn't guaranteed. */
+.pswp.pswp {
+  --pswp-root-z-index: 90;
+  --pswp-bg: var(--color-paper);
+  --pswp-placeholder-bg: var(--color-paper);
+  --pswp-icon-color: var(--color-ink);
+  --pswp-icon-color-secondary: var(--color-paper);
+  --pswp-icon-stroke-color: var(--color-paper);
+  --pswp-preloader-color: var(--color-line);
+  --pswp-preloader-color-secondary: var(--color-accent);
+  --pswp-error-text-color: var(--color-muted);
 }
 
-.is-immersive [data-zoom-toggle] {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  max-width: none !important;
-}
-
-.is-immersive .photo-media {
-  width: 100%;
-  height: 100%;
-  max-width: none !important;
-  aspect-ratio: auto !important;
-  background-image: none !important;
-  overflow: visible !important;
-}
-
-.is-immersive .photo-img {
-  position: static !important;
-  object-fit: contain !important;
-}
-
-html.immersive-open,
-html.immersive-open body {
-  overflow: hidden;
+.pswp .pswp__counter {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  color: var(--color-muted);
+  text-shadow: none;
 }
 
 /* No JS or reduced motion: never hide content. */

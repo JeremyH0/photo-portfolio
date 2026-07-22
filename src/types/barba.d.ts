@@ -32,6 +32,7 @@ declare module '@barba/core' {
 
   const barba: {
     init(options?: BarbaOptions): void;
+    go(href: string): Promise<void>;
     hooks: {
       before(fn: HookFn): void;
       beforeLeave(fn: HookFn): void;
