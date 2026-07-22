@@ -54,10 +54,12 @@ Jeremy's taste** (started colorful 3-accent, went minimalist blue, now
 champagne/gold) — if asked to change it again, it's contained entirely to
 that `@theme` block plus the two SVG gradient `<stop>` colors in
 `Layout.astro`. Theme toggle persists to `localStorage`, defaults to system
-preference, applied pre-paint (no FOUC). The toggle animates the whole
-palette as one snapshot via the **View Transitions API** — a circular reveal
-growing from the button (`app.ts`, `::view-transition-*(root)` CSS). Browsers
-without the API (and reduced-motion) just swap the theme instantly.
+preference, applied pre-paint (no FOUC). The toggle itself is a simple
+`data-theme` flip (`html,body { transition: background-color, color }` for
+the crossfade); the button's own hover animation (`.theme-toggle:hover {
+transform: rotate(180deg) }`, `global.css`) is the only flourish — a fancier
+View-Transitions circular reveal was tried and reverted, it read as buggy on
+some devices.
 
 **Typography**: Space Grotesk (self-hosted variable font via
 `@fontsource-variable/space-grotesk`, imported + preloaded in
@@ -87,19 +89,35 @@ without the API (and reduced-motion) just swap the theme instantly.
   opened on syncs the page via `barba.go` + `pendingNavDir` (directional
   wave). While `.pswp` is in the DOM the global keydown handler stands down
   (PhotoSwipe owns Esc + arrows). Swipe/drag directly on the hero (outside
-  the lightbox) still navigates prev/next. On desktop (`lg:`) the hero fills
-  a fixed vertical band (`.detail-hero__media`, `height: min(72svh, 760px)`,
-  width auto) so its top AND bottom edges stay put across formats and the
-  caption/nav below never jump when paging between differently-shaped photos;
-  below `lg` the hero is full-width and aspect-driven as before.
+  the lightbox) still navigates prev/next. The hero fills a fixed vertical
+  band at every breakpoint (`.detail-hero__media`, tiered height —
+  `min(34svh,300px)` mobile / `min(46svh,560px)` sm / `min(72svh,760px)`
+  lg — width auto, capped `max-width:100%`) so its top AND bottom edges stay
+  put across formats and the caption/nav below never jump when paging
+  between differently-shaped photos. The image itself is `object-fit:
+  contain`, never `cover` — a shape that doesn't fill the band renders
+  smaller inside it rather than cropping, with the blurred LQIP showing
+  through as an ambient backdrop in the gutter. Mobile's band is
+  deliberately short: width is the scarce dimension on a phone, so a tall
+  band would letterbox ordinary landscape photos badly (see the git history
+  on this block for the derivation if it needs retuning). Side arrows
+  (`.detail-arrow`) only render `lg:` and up — tablet relies on swipe/thumb
+  nav instead, they didn't fit well there.
 
 **Page transitions** (Barba.js + GSAP, `src/scripts/app.ts`) — a family of
 five, not one style everywhere:
 1. `flip-photo` — clicking a gallery photo: the image itself flies/expands
    into the detail page hero (shared-element FLIP, `.flip-clone`).
-2. `photo-slide` — prev/next inside an album: the wave, but sweeping
+2. `photo-slide` — prev/next inside an album: the wave, sweeping
    horizontally in the travel direction (next: left → right, prev:
-   right → left; `WAVE_H` keyframes) over a subtle 2.5% drift of the page.
+   right → left; `WAVE_H` keyframes). **Gotcha**: this transition used to
+   also drift the whole container a couple percent sideways via GSAP
+   `xPercent` for extra polish — don't bring that back. `xPercent`/`x` set a
+   CSS `transform` on the container, and a transformed ancestor becomes the
+   containing block for any `position: fixed` descendant (confirmed live:
+   the `.detail-arrow` side arrows visibly dragged ~36px sideways during the
+   transition and snapped back). Any future per-container transform on the
+   Barba container needs to be checked against the fixed-position arrows.
 3. `wave-top` — leaving a photo page back to a section: the wave transition
    below, but mirrored (drops from top) and 1.35× faster.
 4. `wave` — any other section change (Work ↔ About): a curved SVG wave

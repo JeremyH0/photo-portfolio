@@ -428,49 +428,13 @@ function initPage(container: HTMLElement) {
 
 /* ---------------- theme toggle (event delegation, survives Barba swaps) ---------------- */
 
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (cb: () => void) => { ready: Promise<void> };
-};
-
 document.addEventListener('click', (e) => {
-  if (!(e.target instanceof Element)) return;
-  const toggle = e.target.closest<HTMLElement>('[data-theme-toggle]');
-  if (!toggle) return;
-
+  if (!(e.target instanceof Element) || !e.target.closest('[data-theme-toggle]')) return;
   const root = document.documentElement;
-  const toDark = root.dataset.theme !== 'dark';
-  const apply = () => {
-    if (toDark) root.dataset.theme = 'dark';
-    else delete root.dataset.theme;
-    localStorage.setItem('theme', toDark ? 'dark' : 'light');
-  };
-
-  const doc = document as ViewTransitionDocument;
-  // The whole palette crossfades as one snapshot instead of each element
-  // transitioning on its own — consistent every time. Reveal grows from the
-  // toggle so the new theme visibly sweeps across the page.
-  if (reducedMotion || !doc.startViewTransition) {
-    apply();
-    return;
-  }
-
-  const rect = toggle.getBoundingClientRect();
-  const x = rect.left + rect.width / 2;
-  const y = rect.top + rect.height / 2;
-  const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-
-  const transition = doc.startViewTransition(apply);
-  transition.ready.then(() => {
-    root.animate(
-      {
-        clipPath: [
-          `circle(0px at ${x}px ${y}px)`,
-          `circle(${radius}px at ${x}px ${y}px)`,
-        ],
-      },
-      { duration: 520, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', pseudoElement: '::view-transition-new(root)' },
-    );
-  });
+  const dark = root.dataset.theme === 'dark';
+  if (dark) delete root.dataset.theme;
+  else root.dataset.theme = 'dark';
+  localStorage.setItem('theme', dark ? 'light' : 'dark');
 });
 
 /* ---------------- custom cursor ---------------- */
@@ -677,8 +641,11 @@ function initBarba() {
       },
       {
         // Prev/next between photos: the wave sweeps in the travel direction —
-        // next pushes left → right, prev right → left. A subtle drift of the
-        // page underneath follows the sweep.
+        // next pushes left → right, prev right → left. No transform is
+        // applied to the container itself: a CSS transform there would turn
+        // it into a new containing block for the position:fixed side arrows,
+        // dragging them sideways along with the tween (confirmed bug — the
+        // arrows visibly drifted during the transition and snapped back).
         name: 'photo-slide',
         custom: ({ current, trigger }) =>
           current.namespace === 'photo' &&
@@ -691,21 +658,10 @@ function initBarba() {
               : 'next');
           pendingNavDir = null;
           (current.container as HTMLElement).dataset.slideDir = dir;
-          gsap.to(current.container, {
-            xPercent: dir === 'prev' ? -2.5 : 2.5,
-            duration: (WAVE_STEP * 2) / 1.6,
-            ease: 'power2.in',
-          });
           await waveIn({ from: dir === 'prev' ? 'right' : 'left', speed: 1.6 });
         },
-        enter({ current, next }) {
+        enter() {
           window.scrollTo(0, 0);
-          const dir = (current.container as HTMLElement).dataset.slideDir ?? 'next';
-          return gsap.from(next.container, {
-            xPercent: dir === 'prev' ? 2.5 : -2.5,
-            duration: (WAVE_STEP * 2) / 1.6,
-            ease: 'power3.out',
-          });
         },
         async after() {
           await waveOut({ speed: 1.6 });

@@ -42,23 +42,6 @@ body {
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-/* Theme toggle via the View Transitions API: the new theme is revealed with a
-   growing circle (driven in app.ts) rather than the browser's default
-   cross-fade of the two root snapshots. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-
-::view-transition-new(root) {
-  z-index: 1;
-}
-
-::view-transition-old(root) {
-  z-index: 0;
-}
-
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -387,7 +370,8 @@ html.has-cursor .cursor {
   transition: color 0.3s ease, border-color 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (min-width: 768px) {
+/* Desktop only — on tablet they crowd a touch UI that already has swipe. */
+@media (min-width: 1024px) {
   .detail-arrow {
     display: grid;
   }
@@ -430,18 +414,35 @@ a:hover .detail-thumb {
   user-select: none;
 }
 
-/* On desktop the hero fills a fixed vertical band, so its top AND bottom edges
-   stay put whatever the photo's format (4:3, 16:9, portrait…) — only the width
-   flexes. This keeps the caption/nav below from jumping between formats. */
-@media (min-width: 1024px) {
-  [data-detail-hero] .detail-hero__btn {
-    width: auto;
-    max-width: 100%;
-  }
+/* The hero fills a fixed vertical band at every breakpoint, so its top AND
+   bottom edges stay put whatever the photo's format (4:3, 16:9, portrait…) —
+   only the width flexes, and the image never crops (object-contain): a shape
+   that doesn't fill the band just renders smaller inside it, centered, with
+   the blurred LQIP visible as an ambient backdrop in any gutter. This keeps
+   the caption/nav below from jumping between formats. Band height is tiered
+   per breakpoint — mobile's is short on purpose: available width is the
+   scarce dimension there, so a tall band would leave big empty bars above
+   and below ordinary landscape photos. */
+[data-detail-hero] .detail-hero__btn {
+  width: fit-content;
+  max-width: 100%;
+}
+
+[data-detail-hero] .detail-hero__media {
+  width: auto;
+  max-width: 100%;
+  height: min(34svh, 300px);
+}
+
+@media (min-width: 640px) {
   [data-detail-hero] .detail-hero__media {
-    width: auto;
+    height: min(46svh, 560px);
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-detail-hero] .detail-hero__media {
     height: min(72svh, 760px);
-    max-width: 100%;
   }
 }
 

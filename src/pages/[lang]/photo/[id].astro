@@ -67,7 +67,6 @@ const settings = await getSiteSettings();
 const title = l(photo.title, lang);
 const caption = l(photo.caption, lang);
 const albumTitle = l(photo.category?.title, lang);
-const isPortrait = photo.image.height > photo.image.width;
 const pad = (n: number) => String(n).padStart(2, '0');
 
 // Whole album for the fullscreen lightbox: swipe through it without leaving
@@ -153,14 +152,14 @@ const lightbox = {
         data-zoom-toggle
         data-cursor-label={t.zoom}
         aria-label={t.zoom}
-        class:list={['detail-hero__btn block w-full', isPortrait ? 'max-w-[62vh]' : '']}
+        class="detail-hero__btn block"
       >
         <div
-          class="photo-media detail-hero__media relative w-full overflow-hidden rounded-[2px]"
+          class="photo-media detail-hero__media relative overflow-hidden rounded-[2px]"
           style={`aspect-ratio: ${photo.image.width} / ${photo.image.height}; background-image: url(${photo.image.lqip})`}
         >
           <img
-            class="photo-img absolute inset-0 h-full w-full object-cover"
+            class="photo-img absolute inset-0 h-full w-full object-contain"
             src={urlFor(photo.image, 1920)}
             srcset={srcsetFor(photo.image)}
             sizes="(min-width: 1024px) 85vw, 100vw"
