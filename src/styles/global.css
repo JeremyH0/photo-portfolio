@@ -493,6 +493,148 @@ a:hover .detail-thumb {
   text-shadow: none;
 }
 
+/* Arrow / close / zoom buttons: the same circular backdrop-blur chip as the
+   detail page's own .detail-arrow, so the lightbox reads as part of the site
+   rather than a bolted-on library default. Icons are swapped for matching
+   glyphs via arrowPrevSVG/arrowNextSVG/closeSVG/zoomSVG in app.ts; this CSS
+   only handles the chrome (chip, sizing, hover) and glyph typography. */
+.pswp .pswp__button--arrow,
+.pswp .pswp__button--close,
+.pswp .pswp__button--zoom {
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-paper) 82%, transparent);
+  backdrop-filter: blur(6px);
+  opacity: 1;
+  color: var(--color-muted);
+  transition: color 0.3s ease, border-color 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pswp .pswp__button--arrow,
+.pswp .pswp__button--close {
+  display: grid;
+}
+
+/* Zoom's own display is conditionally toggled by PhotoSwipe itself via
+   .pswp--zoom-allowed — a second class on the SAME root element, not a
+   separate ancestor, so the override has to be a compound selector
+   (.pswp.pswp--zoom-allowed) rather than a descendant combinator, or it
+   never matches anything. This beats photoswipe.css's plain
+   `.pswp--zoom-allowed .pswp__button--zoom` regardless of bundle order. */
+.pswp.pswp--zoom-allowed .pswp__button--zoom {
+  display: grid;
+}
+
+.pswp .pswp__button--arrow:hover,
+.pswp .pswp__button--close:hover,
+.pswp .pswp__button--zoom:hover {
+  color: var(--color-ink);
+  border-color: var(--color-accent);
+  transform: scale(1.08);
+}
+
+/* Same reasoning: photoswipe.css hides arrows for a single-photo album via
+   .pswp--one-slide, a class on the same root element. */
+.pswp.pswp--one-slide .pswp__button--arrow {
+  display: none;
+}
+
+.pswp .pswp__button--arrow:disabled {
+  opacity: 0.35;
+}
+
+/* Reposition the arrows inset from the edge, matching .detail-arrow. */
+.pswp .pswp__button--arrow {
+  top: 50%;
+  margin-top: -1.5rem;
+}
+
+.pswp .pswp__button--arrow--prev {
+  left: 1.25rem;
+}
+
+.pswp .pswp__button--arrow--next {
+  right: 1.25rem;
+}
+
+.pswp .pswp__icn-glyph {
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.pswp .pswp__icn-glyph--close {
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+/* Top bar: vertically center the counter/zoom/close against the buttons'
+   new fixed height instead of photoswipe's own manual-margin centering. */
+.pswp .pswp__top-bar {
+  align-items: center;
+  gap: 0.6rem;
+  padding-inline: 1.1rem;
+}
+
+.pswp .pswp__counter {
+  height: auto;
+  margin: 0;
+}
+
+/* Touch devices get no arrow buttons (photoswipe hides them until a mouse
+   is used) — swiping already works, but isn't obvious on first open. A
+   quiet hint fades in, then out on its own, or as soon as the visitor
+   swipes (`.pswp__swipe-hint-dismissed`, toggled in app.ts). */
+.pswp .pswp__swipe-hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  transform: translateX(-50%);
+  color: var(--color-muted);
+  pointer-events: none;
+  animation: pswp-swipe-hint 3.2s ease forwards;
+}
+
+.pswp .pswp__swipe-hint .pswp__icn-glyph {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.pswp--has_mouse .pswp__swipe-hint,
+.pswp--one-slide .pswp__swipe-hint,
+.pswp__swipe-hint-dismissed .pswp__swipe-hint {
+  display: none;
+}
+
+@keyframes pswp-swipe-hint {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  35% { transform: translate(calc(-50% - 5px), 0); }
+  55% { transform: translate(calc(-50% + 5px), 0); }
+  75% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pswp .pswp__swipe-hint {
+    animation: pswp-swipe-hint-fade 3.2s ease forwards;
+  }
+}
+
+@keyframes pswp-swipe-hint-fade {
+  0%, 15% { opacity: 0; }
+  25%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* No JS or reduced motion: never hide content. */
 @media (prefers-reduced-motion: reduce) {
   .photo-img {

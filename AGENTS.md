@@ -100,7 +100,31 @@ for ja/zh/zh-tw.
   opened on syncs the page via `barba.go` + `pendingNavDir` (directional
   wave). While `.pswp` is in the DOM the global keydown handler stands down
   (PhotoSwipe owns Esc + arrows). Swipe/drag directly on the hero (outside
-  the lightbox) still navigates prev/next. The hero fills a fixed vertical
+  the lightbox) still navigates prev/next.
+  **Icons**: arrow/close/zoom are NOT PhotoSwipe's default SVGs — they're
+  overridden via the `arrowPrevSVG`/`arrowNextSVG`/`closeSVG`/`zoomSVG`
+  lightbox options in `app.ts` (arrows/close reuse the same ←/→/× glyphs as
+  the rest of the site; zoom is a minimal hand-drawn magnifier that reuses
+  PhotoSwipe's own `pswp__zoom-icn-bar-h`/`-v` class names so its built-in
+  "+"→"−" zoomed-in toggle keeps working for free). Buttons are restyled in
+  `global.css` into the same circular backdrop-blur chip as `.detail-arrow`.
+  **Gotcha**: PhotoSwipe puts state classes (`.pswp--zoom-allowed`,
+  `.pswp--one-slide`, `.pswp--touch`, `.pswp--has_mouse`) directly on the
+  root `.pswp` element, not on a wrapping ancestor — an override has to be
+  the *compound* selector `.pswp.pswp--zoom-allowed .foo`, not the
+  descendant selector `.pswp--zoom-allowed .pswp .foo` (the latter matches
+  nothing, since there's no separate `.pswp` descendant to find; this
+  shipped as a real bug once, caught by the zoom button silently staying
+  `display:block` instead of picking up the chip layout).
+  **Mobile swipe hint**: PhotoSwipe hides its arrow buttons on touch devices
+  by default (swipe replaces them) — a small `←→` hint element is
+  registered via `lightbox.on('uiRegister', ...)` and fades in/out once via
+  CSS animation, only visible while `.pswp--touch` is set and
+  `.pswp--has_mouse` isn't (mirrors PhotoSwipe's own arrow-visibility
+  logic). Dismissed early by a `pswp__swipe-hint-dismissed` class added on
+  the *second* `change` event — the first `change` fires just from setting
+  the opening slide, not a real swipe, and would otherwise dismiss the hint
+  before it's ever seen. The hero fills a fixed vertical
   band at every breakpoint (`.detail-hero__media`, tiered height —
   `min(34svh,300px)` mobile / `min(46svh,560px)` sm / `min(72svh,760px)`
   lg — width auto, capped `max-width:100%`) so its top AND bottom edges stay

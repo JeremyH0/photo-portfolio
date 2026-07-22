@@ -281,6 +281,19 @@ function initDetail(container: HTMLElement) {
       zoomTitle: data.labels.zoom,
       arrowPrevTitle: data.labels.prev,
       arrowNextTitle: data.labels.next,
+      // Reuse the same glyphs as the detail page's own prev/next arrows —
+      // one consistent set of icons instead of PhotoSwipe's defaults.
+      arrowPrevSVG: '<span class="pswp__icn-glyph" aria-hidden="true">←</span>',
+      arrowNextSVG: '<span class="pswp__icn-glyph" aria-hidden="true">→</span>',
+      closeSVG: '<span class="pswp__icn-glyph pswp__icn-glyph--close" aria-hidden="true">×</span>',
+      // Thin-line magnifier, styled to match; reuses PhotoSwipe's own
+      // "+" -> "-" class names so the built-in zoomed-in toggle still works.
+      zoomSVG:
+        '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.6" stroke-linecap="round" aria-hidden="true">' +
+        '<circle cx="10" cy="10" r="6.5"/><line x1="14.8" y1="14.8" x2="20.5" y2="20.5"/>' +
+        '<line class="pswp__zoom-icn-bar-h" x1="7" y1="10" x2="13" y2="10"/>' +
+        '<line class="pswp__zoom-icn-bar-v" x1="10" y1="7" x2="10" y2="13"/></svg>',
     });
     // Open/close zooms from/to the hero — but only for this page's own photo;
     // after swiping to another one the close falls back to a fade.
@@ -288,6 +301,26 @@ function initDetail(container: HTMLElement) {
       const heroImg = hero.querySelector('img');
       return index === data.index && heroImg ? heroImg : (thumbEl as HTMLElement);
     });
+
+    // Touch devices get no arrow buttons (PhotoSwipe hides them until a
+    // mouse is used) — swiping already works, but isn't obvious on first
+    // open, so show a quiet hint that fades on its own or on first swipe.
+    if (data.photos.length > 1) {
+      lightbox.on('uiRegister', () => {
+        lightbox.pswp?.ui?.registerElement({
+          name: 'swipeHint',
+          className: 'pswp__swipe-hint',
+          appendTo: 'wrapper',
+          html: '<span class="pswp__icn-glyph">←</span><span class="pswp__icn-glyph">→</span>',
+        });
+      });
+      // `change` fires once just for setting the opening slide, then again
+      // per real navigation — only the latter should dismiss the hint.
+      let changeCount = 0;
+      lightbox.on('change', () => {
+        if (changeCount++ > 0) lightbox.pswp?.element?.classList.add('pswp__swipe-hint-dismissed');
+      });
+    }
 
     let lastIndex = data.index;
     lightbox.on('change', () => {
