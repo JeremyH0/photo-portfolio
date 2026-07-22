@@ -17,14 +17,24 @@ const [photos, categories, settings] = await Promise.all([
   getSiteSettings(),
 ]);
 
-// Editorial 12-column rhythm: wide / narrow-offset pairs, repeating every 6.
+// Photos per gallery, for the switcher counts.
+const countBySlug = new Map<string, number>();
+for (const p of photos) {
+  const slug = p.category?.slug ?? 'other';
+  countBySlug.set(slug, (countBySlug.get(slug) ?? 0) + 1);
+}
+const pad = (n: number) => String(n).padStart(2, '0');
+
+// Editorial 12-column rhythm (desktop only): wide / narrow-offset pairs,
+// repeating every 6. Below lg the grid is a clean 1- then 2-column stack.
+// The `(min-width:640px) 48vw` step matches the 2-column tablet layout.
 const pattern = [
-  { span: 'md:col-span-7 md:col-start-1', sizes: '(min-width: 768px) 55vw, 100vw' },
-  { span: 'md:col-span-4 md:col-start-9 md:mt-32', sizes: '(min-width: 768px) 32vw, 100vw' },
-  { span: 'md:col-span-5 md:col-start-2 md:-mt-10', sizes: '(min-width: 768px) 40vw, 100vw' },
-  { span: 'md:col-span-6 md:col-start-7 md:mt-24', sizes: '(min-width: 768px) 48vw, 100vw' },
-  { span: 'md:col-span-8 md:col-start-3 md:mt-16', sizes: '(min-width: 768px) 64vw, 100vw' },
-  { span: 'md:col-span-4 md:col-start-1 md:mt-20', sizes: '(min-width: 768px) 32vw, 100vw' },
+  { span: 'lg:col-span-7 lg:col-start-1', sizes: '(min-width:1024px) 55vw, (min-width:640px) 48vw, 100vw' },
+  { span: 'lg:col-span-4 lg:col-start-9 lg:mt-32', sizes: '(min-width:1024px) 32vw, (min-width:640px) 48vw, 100vw' },
+  { span: 'lg:col-span-5 lg:col-start-2 lg:-mt-10', sizes: '(min-width:1024px) 40vw, (min-width:640px) 48vw, 100vw' },
+  { span: 'lg:col-span-6 lg:col-start-7 lg:mt-24', sizes: '(min-width:1024px) 48vw, (min-width:640px) 48vw, 100vw' },
+  { span: 'lg:col-span-8 lg:col-start-3 lg:mt-16', sizes: '(min-width:1024px) 64vw, (min-width:640px) 48vw, 100vw' },
+  { span: 'lg:col-span-4 lg:col-start-1 lg:mt-20', sizes: '(min-width:1024px) 32vw, (min-width:640px) 48vw, 100vw' },
 ];
 ---
 
@@ -48,25 +58,27 @@ const pattern = [
     </h1>
   </section>
 
-  <!-- Category filter -->
-  <nav
-    class="filter-bar mb-14 flex flex-wrap gap-x-7 gap-y-3 border-t border-line pt-6 text-[0.72rem] uppercase tracking-[0.2em]"
-    aria-label="Categories"
-  >
-    <button type="button" class="filter-btn" data-filter="all" aria-pressed="true">
-      {t.all}
-    </button>
-    {
-      categories.map((cat) => (
-        <button type="button" class="filter-btn" data-filter={cat.slug} aria-pressed="false">
-          {l(cat.title, lang)}
-        </button>
-      ))
-    }
+  <!-- Gallery switcher -->
+  <nav class="filter-bar mb-12 border-t border-line pt-6 md:mb-16" aria-label={t.galleries}>
+    <p class="mb-4 text-[0.62rem] uppercase tracking-[0.3em] text-muted">{t.galleries}</p>
+    <div class="flex flex-wrap gap-x-8 gap-y-4">
+      <button type="button" class="filter-btn" data-filter="all" aria-pressed="true">
+        <span class="filter-btn__label">{t.all}</span>
+        <span class="filter-btn__count">{pad(photos.length)}</span>
+      </button>
+      {
+        categories.map((cat) => (
+          <button type="button" class="filter-btn" data-filter={cat.slug} aria-pressed="false">
+            <span class="filter-btn__label">{l(cat.title, lang)}</span>
+            <span class="filter-btn__count">{pad(countBySlug.get(cat.slug) ?? 0)}</span>
+          </button>
+        ))
+      }
+    </div>
   </nav>
 
   <!-- Photo grid -->
-  <section class="photo-grid grid grid-cols-1 gap-y-16 md:grid-cols-12 md:gap-x-8 md:gap-y-8">
+  <section class="photo-grid grid grid-cols-1 gap-y-12 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-12 lg:gap-x-8 lg:gap-y-8">
     {
       photos.map((photo, i) => (
         <PhotoCard

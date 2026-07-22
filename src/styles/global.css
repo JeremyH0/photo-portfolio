@@ -295,10 +295,38 @@ html.has-cursor .cursor {
   outline-offset: 4px;
 }
 
-/* Category filter buttons (JS toggles aria-pressed). */
+/* Gallery switcher buttons (JS toggles aria-pressed). Each shows a photo
+   count and grows an accent underline in when active. */
 .filter-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding-bottom: 0.4rem;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  transition: color 0.3s ease;
+}
+
+.filter-btn__count {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
   color: var(--color-muted);
   transition: color 0.3s ease;
+}
+
+.filter-btn::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .filter-btn:hover {
@@ -307,10 +335,20 @@ html.has-cursor .cursor {
 
 .filter-btn[aria-pressed="true"] {
   color: var(--color-ink);
-  text-decoration: underline;
-  text-underline-offset: 6px;
-  text-decoration-thickness: 2px;
-  text-decoration-color: var(--color-accent);
+}
+
+.filter-btn[aria-pressed="true"] .filter-btn__count {
+  color: var(--color-accent);
+}
+
+.filter-btn[aria-pressed="true"]::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-btn::after {
+    transition: none;
+  }
 }
 
 /* ---------- photo detail: arrows, counter, immersive view ---------- */

@@ -46,6 +46,7 @@ type UIStrings = {
   close: string;
   counterOf: string;
   albums: string;
+  galleries: string;
 };
 
 export const ui: Record<LocaleCode, UIStrings> = {
@@ -65,6 +66,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     close: 'Close',
     counterOf: 'of',
     albums: 'Albums',
+    galleries: 'Galleries',
   },
   ja: {
     work: '作品',
@@ -82,6 +84,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     close: '閉じる',
     counterOf: '/',
     albums: 'アルバム',
+    galleries: 'ギャラリー',
   },
   zh: {
     work: '作品',
@@ -99,6 +102,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     close: '关闭',
     counterOf: '/',
     albums: '相册',
+    galleries: '图库',
   },
   'zh-tw': {
     work: '作品',
@@ -116,6 +120,7 @@ export const ui: Record<LocaleCode, UIStrings> = {
     close: '關閉',
     counterOf: '/',
     albums: '相簿',
+    galleries: '圖庫',
   },
 };
 

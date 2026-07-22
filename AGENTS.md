@@ -30,8 +30,14 @@ types), `src/lib/image.ts` (`urlFor`/`srcsetFor` — always route images
 through these, never raw Sanity URLs). Env vars `SANITY_PROJECT_ID` /
 `SANITY_DATASET` via `.env` (see `.env.example`).
 
-**Albums**: a Sanity `category` doubles as an "album." The gallery
-(`/[lang]/`) filters by category client-side. Photo detail pages
+**Albums / galleries**: a Sanity `category` doubles as an "album" (labelled
+"Galleries" in the gallery UI). The gallery (`/[lang]/`) shows every photo in
+one mixed editorial grid with a switcher up top (per-gallery photo counts,
+accent underline on the active one); `initFilter` in `app.ts` filters
+client-side and animates the re-layout with **GSAP Flip** (surviving cards
+slide to new slots; entering/leaving cards fade+scale). Grid is responsive:
+1 col on phones, 2 on tablets (`sm:`), the 12-col offset pattern only at
+`lg:` (desktop). Photo detail pages
 (`/[lang]/photo/[id]/`) are album-scoped — prev/next/counter/swipe all stay
 within the photo's own album; an album-switcher tab row at the top jumps to
 another album's first photo. Logic lives in `getStaticPaths()` in
@@ -101,9 +107,12 @@ Each transition is a `custom:` predicate — **built only from
 cache hits; predicates that read it silently fall back to the wrong
 transition on every first visit (this bug shipped once — vertical wave on
 prev/next). Among equal-priority customs Barba checks the *last-defined
-first*, so keep the predicates mutually exclusive. `prefers-reduced-motion`
-disables Barba entirely (plain multi-page nav) and disables the
-cursor/parallax/hover-zoom (the lightbox still works, minus animations).
+first*, so keep the predicates mutually exclusive. **Barba only runs on
+desktop (>=1024px)** — the `useBarba` flag (`!reducedMotion && matchMedia(min-width:1024px)`)
+gates both `initBarba()` and the lightbox's close-nav (`barba.go` vs
+`location.assign`); below that, and with `prefers-reduced-motion`,
+navigation is plain multi-page loads. Reduced-motion additionally disables
+the cursor/parallax/hover-zoom (the lightbox still works, minus animations).
 
 **Gotcha**: Barba fires `afterEnter` for the *initial* page load, not just
 client-side navigations. `initPage()` guards against double-init via

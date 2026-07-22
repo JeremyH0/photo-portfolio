@@ -12,17 +12,23 @@
  *    the top when leaving a photo).
  *  - same page, other language: quick scale-down + rise.
  *
- * prefers-reduced-motion: Barba, reveals and the custom cursor are all
- * disabled; the site works as plain multi-page navigation.
+ * Page transitions (Barba) run on desktop (>=1024px) only; on smaller
+ * screens, and with prefers-reduced-motion, navigation is plain multi-page
+ * loads. Reduced-motion additionally drops reveals and the custom cursor.
  */
 import barba from '@barba/core';
 import gsap from 'gsap';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
+import { Flip } from 'gsap/Flip';
 import 'photoswipe/style.css';
 
-gsap.registerPlugin(MorphSVGPlugin);
+gsap.registerPlugin(MorphSVGPlugin, Flip);
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// The page transitions (wave / FLIP / slide) only read well on large screens;
+// below this — or with reduced-motion — navigation is plain multi-page loads.
+const useBarba = !reducedMotion && window.matchMedia('(min-width: 1024px)').matches;
 
 /** Theme accent pair, read live so dark/light both look right. */
 function accentColors(): [string, string] {
@@ -134,27 +140,45 @@ function initHero(container: HTMLElement) {
 function initFilter(container: HTMLElement) {
   const buttons = container.querySelectorAll<HTMLButtonElement>('.filter-btn');
   if (!buttons.length) return;
+  const cards = gsap.utils.toArray<HTMLElement>('.photo-card', container);
+
+  const apply = (filter?: string) =>
+    cards.forEach((card) => {
+      card.style.display = filter === 'all' || card.dataset.category === filter ? '' : 'none';
+    });
 
   buttons.forEach((btn) => {
     btn.addEventListener('click', () => {
+      if (btn.getAttribute('aria-pressed') === 'true') return;
       const filter = btn.dataset.filter;
       buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
 
-      const cards = container.querySelectorAll<HTMLElement>('.photo-card');
-      const visible: HTMLElement[] = [];
-      cards.forEach((card) => {
-        const match = filter === 'all' || card.dataset.category === filter;
-        card.style.display = match ? '' : 'none';
-        if (match) visible.push(card);
-      });
-
-      if (!reducedMotion) {
-        gsap.fromTo(
-          visible,
-          { autoAlpha: 0, y: 32 },
-          { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.05 },
-        );
+      if (reducedMotion) {
+        apply(filter);
+        return;
       }
+
+      // Settle any in-flight scroll reveal so Flip measures rest positions,
+      // then let it animate the surviving cards to their new grid slots.
+      revealObserver?.disconnect();
+      revealObserver = null;
+      gsap.set(cards, { autoAlpha: 1, clearProps: 'transform' });
+
+      const state = Flip.getState(cards);
+      apply(filter);
+      Flip.from(state, {
+        duration: 0.55,
+        ease: 'power3.inOut',
+        scale: true,
+        absolute: true,
+        onEnter: (els) =>
+          gsap.fromTo(
+            els,
+            { opacity: 0, scale: 0.92 },
+            { opacity: 1, scale: 1, duration: 0.5, delay: 0.12 },
+          ),
+        onLeave: (els) => gsap.to(els, { opacity: 0, scale: 0.92, duration: 0.3 }),
+      });
     });
   });
 }
@@ -277,8 +301,8 @@ function initDetail(container: HTMLElement) {
       const forward = (lastIndex - data.index + len) % len;
       pendingNavDir = forward <= len - forward ? 'next' : 'prev';
       const url = data.photos[lastIndex].url;
-      if (reducedMotion) location.assign(url);
-      else barba.go(url);
+      if (useBarba) barba.go(url);
+      else location.assign(url);
     });
     lightbox.init();
     lightbox.loadAndOpen(data.index);
@@ -751,7 +775,7 @@ function initBarba() {
 
 const firstContainer = document.querySelector<HTMLElement>('[data-barba="container"]');
 if (firstContainer) initPage(firstContainer);
-if (!reducedMotion) initBarba();
+if (useBarba) initBarba();
 
 // Arrow keys navigate between photos. While the lightbox is open PhotoSwipe
 // owns the keyboard (Escape and arrows) — don't also navigate underneath it.
