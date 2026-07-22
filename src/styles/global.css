@@ -92,6 +92,14 @@ body {
 
 .theme-toggle:hover {
   color: var(--color-ink);
+}
+
+/* Rotation tracks the actual theme state rather than :hover — on touch
+   devices :hover only "sticks" after a tap until something else is tapped,
+   so a hover-driven rotate only ever plays once per visit. Tying it to
+   [data-theme] instead makes it replay every time the theme changes, the
+   same on mouse, touch, or keyboard. */
+:root[data-theme="dark"] .theme-toggle {
   transform: rotate(180deg);
 }
 

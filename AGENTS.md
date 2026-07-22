@@ -56,10 +56,16 @@ that `@theme` block plus the two SVG gradient `<stop>` colors in
 `Layout.astro`. Theme toggle persists to `localStorage`, defaults to system
 preference, applied pre-paint (no FOUC). The toggle itself is a simple
 `data-theme` flip (`html,body { transition: background-color, color }` for
-the crossfade); the button's own hover animation (`.theme-toggle:hover {
-transform: rotate(180deg) }`, `global.css`) is the only flourish — a fancier
-View-Transitions circular reveal was tried and reverted, it read as buggy on
-some devices.
+the crossfade); a fancier View-Transitions circular reveal was tried and
+reverted, it read as buggy on some devices.
+The button's own rotate flourish (`global.css`) is driven by the theme
+state, `:root[data-theme="dark"] .theme-toggle { transform: rotate(180deg) }`
+— **not** `:hover`. It used to be hover-only, which looked identical on
+desktop but broke on touch: mobile browsers apply `:hover` on tap and only
+clear it once a *different* element is tapped, so the rotation played once
+per visit and then silently stopped replaying until you touched something
+else first. Tying it to the actual `[data-theme]` attribute instead makes
+it replay every toggle, identically on mouse, touch, and keyboard.
 
 **Typography**: Nimbus Sans (URW++'s Helvetica-metric twin) is the single
 site-wide face — `--font-serif` just aliases `--font-sans`. Self-hosted as
