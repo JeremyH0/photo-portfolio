@@ -428,13 +428,49 @@ function initPage(container: HTMLElement) {
 
 /* ---------------- theme toggle (event delegation, survives Barba swaps) ---------------- */
 
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (cb: () => void) => { ready: Promise<void> };
+};
+
 document.addEventListener('click', (e) => {
-  if (!(e.target instanceof Element) || !e.target.closest('[data-theme-toggle]')) return;
+  if (!(e.target instanceof Element)) return;
+  const toggle = e.target.closest<HTMLElement>('[data-theme-toggle]');
+  if (!toggle) return;
+
   const root = document.documentElement;
-  const dark = root.dataset.theme === 'dark';
-  if (dark) delete root.dataset.theme;
-  else root.dataset.theme = 'dark';
-  localStorage.setItem('theme', dark ? 'light' : 'dark');
+  const toDark = root.dataset.theme !== 'dark';
+  const apply = () => {
+    if (toDark) root.dataset.theme = 'dark';
+    else delete root.dataset.theme;
+    localStorage.setItem('theme', toDark ? 'dark' : 'light');
+  };
+
+  const doc = document as ViewTransitionDocument;
+  // The whole palette crossfades as one snapshot instead of each element
+  // transitioning on its own — consistent every time. Reveal grows from the
+  // toggle so the new theme visibly sweeps across the page.
+  if (reducedMotion || !doc.startViewTransition) {
+    apply();
+    return;
+  }
+
+  const rect = toggle.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+
+  const transition = doc.startViewTransition(apply);
+  transition.ready.then(() => {
+    root.animate(
+      {
+        clipPath: [
+          `circle(0px at ${x}px ${y}px)`,
+          `circle(${radius}px at ${x}px ${y}px)`,
+        ],
+      },
+      { duration: 520, easing: 'cubic-bezier(0.65, 0, 0.35, 1)', pseudoElement: '::view-transition-new(root)' },
+    );
+  });
 });
 
 /* ---------------- custom cursor ---------------- */

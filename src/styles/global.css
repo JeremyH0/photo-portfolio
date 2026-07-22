@@ -42,6 +42,23 @@ body {
   transition: background-color 0.4s ease, color 0.4s ease;
 }
 
+/* Theme toggle via the View Transitions API: the new theme is revealed with a
+   growing circle (driven in app.ts) rather than the browser's default
+   cross-fade of the two root snapshots. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-new(root) {
+  z-index: 1;
+}
+
+::view-transition-old(root) {
+  z-index: 0;
+}
+
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -411,6 +428,21 @@ a:hover .detail-thumb {
 [data-detail-hero] .photo-img {
   -webkit-user-drag: none;
   user-select: none;
+}
+
+/* On desktop the hero fills a fixed vertical band, so its top AND bottom edges
+   stay put whatever the photo's format (4:3, 16:9, portrait…) — only the width
+   flexes. This keeps the caption/nav below from jumping between formats. */
+@media (min-width: 1024px) {
+  [data-detail-hero] .detail-hero__btn {
+    width: auto;
+    max-width: 100%;
+  }
+  [data-detail-hero] .detail-hero__media {
+    width: auto;
+    height: min(72svh, 760px);
+    max-width: 100%;
+  }
 }
 
 /* PhotoSwipe skinned to the site: paper background, ink icons. Sits below

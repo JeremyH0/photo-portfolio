@@ -11,6 +11,13 @@ const lang = Astro.params.lang as LocaleCode;
 const t = ui[lang];
 const settings = await getSiteSettings();
 const bio = l(settings.bio, lang);
+
+// Nick's Instagram is rendered from code (the seeded Site Settings only has a
+// placeholder instagram.com link). Drop any Instagram from Sanity so exactly
+// one — the correct handle — shows; other Sanity socials still render.
+const INSTAGRAM_URL = 'https://www.instagram.com/shmily_5021991/';
+const socials =
+  settings.socialLinks?.filter((link) => link.url && !/instagram/i.test(link.url)) ?? [];
 ---
 
 <Layout
@@ -51,20 +58,25 @@ const bio = l(settings.bio, lang);
         )
       }
       {
-        settings.socialLinks?.map(
-          (link) =>
-            link.url && (
-              <a
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-[0.78rem] uppercase tracking-[0.22em] text-muted transition-colors duration-300 hover:text-accent"
-              >
-                {link.label ?? link.url}
-              </a>
-            ),
-        )
+        socials.map((link) => (
+          <a
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[0.78rem] uppercase tracking-[0.22em] text-muted transition-colors duration-300 hover:text-accent"
+          >
+            {link.label ?? link.url}
+          </a>
+        ))
       }
+      <a
+        href={INSTAGRAM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-[0.78rem] uppercase tracking-[0.22em] text-muted transition-colors duration-300 hover:text-accent"
+      >
+        Instagram
+      </a>
     </div>
   </section>
 </Layout>

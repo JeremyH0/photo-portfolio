@@ -54,7 +54,10 @@ Jeremy's taste** (started colorful 3-accent, went minimalist blue, now
 champagne/gold) — if asked to change it again, it's contained entirely to
 that `@theme` block plus the two SVG gradient `<stop>` colors in
 `Layout.astro`. Theme toggle persists to `localStorage`, defaults to system
-preference, applied pre-paint (no FOUC).
+preference, applied pre-paint (no FOUC). The toggle animates the whole
+palette as one snapshot via the **View Transitions API** — a circular reveal
+growing from the button (`app.ts`, `::view-transition-*(root)` CSS). Browsers
+without the API (and reduced-motion) just swap the theme instantly.
 
 **Typography**: Space Grotesk (self-hosted variable font via
 `@fontsource-variable/space-grotesk`, imported + preloaded in
@@ -84,7 +87,11 @@ preference, applied pre-paint (no FOUC).
   opened on syncs the page via `barba.go` + `pendingNavDir` (directional
   wave). While `.pswp` is in the DOM the global keydown handler stands down
   (PhotoSwipe owns Esc + arrows). Swipe/drag directly on the hero (outside
-  the lightbox) still navigates prev/next.
+  the lightbox) still navigates prev/next. On desktop (`lg:`) the hero fills
+  a fixed vertical band (`.detail-hero__media`, `height: min(72svh, 760px)`,
+  width auto) so its top AND bottom edges stay put across formats and the
+  caption/nav below never jump when paging between differently-shaped photos;
+  below `lg` the hero is full-width and aspect-driven as before.
 
 **Page transitions** (Barba.js + GSAP, `src/scripts/app.ts`) — a family of
 five, not one style everywhere:
