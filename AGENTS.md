@@ -61,11 +61,22 @@ transform: rotate(180deg) }`, `global.css`) is the only flourish — a fancier
 View-Transitions circular reveal was tried and reverted, it read as buggy on
 some devices.
 
-**Typography**: Space Grotesk (self-hosted variable font via
-`@fontsource-variable/space-grotesk`, imported + preloaded in
-`Layout.astro`) is the single site-wide face — `--font-serif` just aliases
-`--font-sans`. Space Grotesk is Latin-only; the CJK fallback chain in
-`--font-sans` must stay for ja/zh/zh-tw.
+**Typography**: Nimbus Sans (URW++'s Helvetica-metric twin) is the single
+site-wide face — `--font-serif` just aliases `--font-sans`. Self-hosted as
+two static WOFF2 files in `src/fonts/nimbus-sans/` (`@font-face` in
+`global.css`, Regular preloaded in `Layout.astro`); only Regular + Bold are
+shipped since nothing on the site uses italic, and Regular's `@font-face`
+declares `font-weight: 100 500` so the one `font-medium` usage (Header logo)
+resolves to it instead of pulling a third file or triggering synthetic
+bold. **License**: SIL OFL 1.1, no Reserved Font Name — genuinely free for
+commercial use (`src/fonts/nimbus-sans/OFL.txt`; canonical source
+[twardoch/urw-core35-fonts](https://github.com/twardoch/urw-core35-fonts),
+itself a re-license of URW++'s original AGPL release). **Careful with "free
+font" claims** — the previous font on this project (Harmony, an Awwwards
+pick) turned out to be personal-use-only despite being billed as "free";
+verify actual license terms before adopting a next one. Nimbus Sans covers
+Latin/Cyrillic/Greek only; the CJK fallback chain in `--font-sans` must stay
+for ja/zh/zh-tw.
 
 **Interactions**:
 - Custom cursor (`.cursor` in `Layout.astro`, logic in `initCursor()` in

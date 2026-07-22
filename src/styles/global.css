@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+/* Nimbus Sans (URW++, SIL OFL 1.1, no Reserved Font Name — see
+   src/fonts/nimbus-sans/OFL.txt) — a metrics/shape twin of Helvetica that's
+   actually free to use commercially, unlike most "free Helvetica" fonts.
+   Only Regular + Bold are shipped: nothing on the site uses italic, and the
+   one `font-medium` (500) usage maps onto Regular via the wide weight range
+   below rather than pulling in a third file or triggering synthetic bold. */
+@font-face {
+  font-family: "Nimbus Sans";
+  src: url("../fonts/nimbus-sans/NimbusSans-Regular.woff2") format("woff2");
+  font-weight: 100 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nimbus Sans";
+  src: url("../fonts/nimbus-sans/NimbusSans-Bold.woff2") format("woff2");
+  font-weight: 600 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   /* "Champagne" (light): warm alabaster paper, espresso ink, burnished
      brass accent — quiet luxury; the photographs carry the color. */
@@ -11,9 +33,10 @@
   --color-accent: #a87e2f; /* brass */
   --color-accent-soft: #e2c078; /* champagne */
 
-  /* Space Grotesk covers Latin only; CJK locales fall through to the chain. */
+  /* Nimbus Sans covers Latin/Cyrillic/Greek only; CJK locales fall through
+     to the system chain. */
   --font-sans:
-    "Space Grotesk Variable", "Helvetica Neue", "Inter", -apple-system,
+    "Nimbus Sans", "Helvetica Neue", "Inter", -apple-system,
     BlinkMacSystemFont, "Segoe UI",
     "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP",
     "PingFang SC", "Noto Sans SC", "PingFang TC", "Noto Sans TC",
