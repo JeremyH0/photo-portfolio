@@ -205,6 +205,33 @@ html.is-transitioning body {
   will-change: transform, width, height, top, left;
 }
 
+/* "Blinds" reveal used by the photo-slide transition (prev/next between
+   photos) — see src/scripts/blinds-transition.ts. Sized/positioned via
+   inline styles per instance; only the shared chrome lives here. */
+.blinds-overlay {
+  position: fixed;
+  z-index: 65;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.blinds-slat {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.blinds-slat__fill {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-paper);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  transform-origin: center;
+  will-change: transform;
+}
+
 /* ---------- custom cursor ---------- */
 
 html.has-cursor,
