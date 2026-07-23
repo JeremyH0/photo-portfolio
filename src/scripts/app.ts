@@ -6,9 +6,8 @@
  * Transition map:
  *  - gallery → photo (clicked card): shared-element FLIP — the clicked image
  *    flies and expands into the detail page hero.
- *  - photo → photo (prev/next): "blinds" reveal (blinds-transition.ts) —
- *    vertical slats collapse away in the travel direction (next: left →
- *    right, prev: right → left), lighter than the wave used elsewhere.
+ *  - photo → photo (prev/next): the wave sweeps horizontally in the travel
+ *    direction (next: left → right, prev: right → left).
  *  - section change: curved wave sweep rising from the bottom (dropping from
  *    the top when leaving a photo).
  *  - same page, other language: quick scale-down + rise.
@@ -22,7 +21,6 @@ import gsap from 'gsap';
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { Flip } from 'gsap/Flip';
 import 'photoswipe/style.css';
-import { coverWithBlinds, revealBlinds, type BlindsDirection } from './blinds-transition';
 
 gsap.registerPlugin(MorphSVGPlugin, Flip);
 
@@ -615,10 +613,6 @@ let flipClone: HTMLImageElement | null = null;
  */
 let pendingNavDir: 'prev' | 'next' | null = null;
 
-/** Blinds overlay + its direction, bridged from `leave` to `after`. */
-let blindsOverlay: HTMLElement | null = null;
-let blindsDir: BlindsDirection | null = null;
-
 function initBarba() {
   barba.init({
     prevent: ({ el }) => el.hasAttribute('data-no-barba'),
@@ -679,14 +673,12 @@ function initBarba() {
         },
       },
       {
-        // Prev/next between photos: a "blinds" reveal (blinds-transition.ts)
-        // — vertical slats collapse away in the travel direction, next
-        // left → right, prev right → left. Lighter than the wave used
-        // everywhere else, deliberately scoped to just this transition.
-        // No transform is applied to the container itself: a CSS transform
-        // there would turn it into a new containing block for the
-        // position:fixed side arrows, dragging them sideways along with the
-        // tween (confirmed bug — the arrows visibly drifted and snapped back).
+        // Prev/next between photos: the wave sweeps in the travel direction —
+        // next pushes left → right, prev right → left. No transform is
+        // applied to the container itself: a CSS transform there would turn
+        // it into a new containing block for the position:fixed side arrows,
+        // dragging them sideways along with the tween (confirmed bug — the
+        // arrows visibly drifted during the transition and snapped back).
         name: 'photo-slide',
         custom: ({ current, trigger }) =>
           current.namespace === 'photo' &&
@@ -698,36 +690,14 @@ function initBarba() {
               ? 'prev'
               : 'next');
           pendingNavDir = null;
-
-          // .detail-hero__media, not the outer figure: its width is
-          // auto-derived from the photo's own aspect ratio (see the fixed
-          // vertical band CSS), so the overlay hugs exactly what's on
-          // screen — a portrait photo gets a narrow overlay, not one
-          // stretched across the whole (much wider) column with most of
-          // the sweep wasted on empty matching-color margins.
-          const heroMedia = current.container.querySelector<HTMLElement>('.detail-hero__media');
-          const heroImg = heroMedia?.querySelector<HTMLImageElement>('img');
-          if (heroMedia && heroImg) {
-            blindsDir = dir;
-            blindsOverlay = coverWithBlinds(heroMedia.getBoundingClientRect(), heroImg.currentSrc || heroImg.src);
-            // Let the (instant, imperceptible) cover actually paint before
-            // Barba removes the real image out from under it.
-            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-          }
+          (current.container as HTMLElement).dataset.slideDir = dir;
+          await waveIn({ from: dir === 'prev' ? 'right' : 'left', speed: 1.6 });
         },
         enter() {
           window.scrollTo(0, 0);
         },
-        async after({ next }) {
-          if (blindsOverlay && blindsDir) {
-            const heroImg = next.container.querySelector<HTMLImageElement>(
-              '[data-detail-hero] .detail-hero__media img',
-            );
-            if (heroImg) await revealBlinds(blindsOverlay, heroImg.currentSrc || heroImg.src, blindsDir);
-            else blindsOverlay.remove();
-          }
-          blindsOverlay = null;
-          blindsDir = null;
+        async after() {
+          await waveOut({ speed: 1.6 });
         },
       },
       {

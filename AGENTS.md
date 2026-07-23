@@ -149,29 +149,16 @@ for ja/zh/zh-tw.
 five, not one style everywhere:
 1. `flip-photo` — clicking a gallery photo: the image itself flies/expands
    into the detail page hero (shared-element FLIP, `.flip-clone`).
-2. `photo-slide` — prev/next inside an album: a "blinds" reveal
-   (`src/scripts/blinds-transition.ts`), not the wave — deliberately
-   lighter than the rest of the family. Vertical slats painted with the
-   outgoing photo collapse away in the travel direction (next: left →
-   right, prev: right → left) to reveal the incoming photo, already live
-   underneath. Config (slat count, per-slat duration, stagger, overlap) are
-   named exports at the top of that file. **To revert to the wave**: swap
-   the `coverWithBlinds`/`revealBlinds` calls in this transition's
-   `leave`/`after` back to `waveIn`/`waveOut` (see git history) and delete
-   the file — nothing else depends on it.
-   The overlay is sized to `.detail-hero__media` (the image's own
-   auto-derived, aspect-ratio-driven box), not the wider outer
-   `[data-detail-hero]` figure — using the figure wastes most of the sweep
-   on empty matching-color margins for any non-wide (portrait/square)
-   photo, since the actual image only occupies a narrow centered column
-   within it. **Gotcha inherited from the wave version**: don't animate a
-   `transform` on the Barba container itself for this transition — a
-   transformed ancestor becomes the containing block for the
-   `position:fixed` `.detail-arrow` side arrows, dragging them along with
-   it (this shipped as a real bug once, confirmed via measurement: ~36px
-   drift, snapping back after). The blinds overlay itself is a separate
-   `position:fixed` element appended to `document.body`, unaffected either
-   way.
+2. `photo-slide` — prev/next inside an album: the wave, sweeping
+   horizontally in the travel direction (next: left → right, prev:
+   right → left; `WAVE_H` keyframes). **Gotcha**: this transition used to
+   also drift the whole container a couple percent sideways via GSAP
+   `xPercent` for extra polish — don't bring that back. `xPercent`/`x` set a
+   CSS `transform` on the container, and a transformed ancestor becomes the
+   containing block for any `position: fixed` descendant (confirmed live:
+   the `.detail-arrow` side arrows visibly dragged ~36px sideways during the
+   transition and snapped back). Any future per-container transform on the
+   Barba container needs to be checked against the fixed-position arrows.
 3. `wave-top` — leaving a photo page back to a section: the wave transition
    below, but mirrored (drops from top) and 1.35× faster.
 4. `wave` — any other section change (Work ↔ About): a curved SVG wave
