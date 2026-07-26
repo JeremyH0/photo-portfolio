@@ -53,9 +53,11 @@ export async function getPhotos(): Promise<Photo[]> {
 }
 
 export async function getCategories(): Promise<Category[]> {
-  // Only categories that actually contain photos, in the order they first appear.
+  // Only categories that actually contain photos, in the order set by
+  // drag-and-drop in the Studio ("Categories" panel — orderRank field).
   return sanity.fetch(
     `*[_type == 'category' && count(*[_type == 'photo' && category._ref == ^._id]) > 0]
+      | order(orderRank asc)
       { title, 'slug': slug.current }`,
   );
 }
