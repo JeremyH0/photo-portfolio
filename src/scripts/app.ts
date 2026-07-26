@@ -365,6 +365,28 @@ function initDetail(container: HTMLElement) {
   });
 }
 
+/**
+ * Warms the browser cache for the prev/next hero images (same URL the real
+ * navigation will request — see heroPrefetchUrl() in [id].astro, must stay
+ * in sync) so by the time someone actually clicks, it's already loaded.
+ * Deferred via requestIdleCallback so it never competes with the current
+ * photo's own load.
+ */
+function initPrefetch(container: HTMLElement) {
+  const links = container.querySelectorAll<HTMLAnchorElement>('[data-prefetch-src]');
+  if (!links.length) return;
+
+  const warm = () => {
+    links.forEach((link) => {
+      const src = link.dataset.prefetchSrc;
+      if (src) new Image().src = src;
+    });
+  };
+
+  if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 2000 });
+  else setTimeout(warm, 300);
+}
+
 /* ---------------- parallax ---------------- */
 
 type ParallaxItem = { el: HTMLElement; speed: number; scale: number };
@@ -453,6 +475,7 @@ function initPage(container: HTMLElement) {
   initBackToTop(container);
   initMenu(container);
   initDetail(container);
+  initPrefetch(container);
   initHero(container);
   initReveals(container);
   initParallax(container);

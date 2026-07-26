@@ -69,6 +69,25 @@ const caption = l(photo.caption, lang);
 const albumTitle = l(photo.category?.title, lang);
 const pad = (n: number) => String(n).padStart(2, '0');
 
+// The hero sits in a fixed-height band per breakpoint (see .detail-hero__media
+// in global.css: min(34svh,300px) mobile / min(46svh,560px) sm / min(72svh,760px)
+// lg), width auto-derived from each photo's own aspect ratio. `sizes` needs to
+// describe THAT rendered width, not a generic 85vw/100vw guess — otherwise the
+// browser assumes the image fills most of the viewport and picks an oversized
+// srcset candidate for photos that actually render much narrower (e.g. any
+// portrait-oriented shot). Also used to build a same-size prefetch URL for the
+// adjacent photos, so next/prev is warm in cache before it's ever clicked.
+const BAND_HEIGHT = { mobile: 300, sm: 560, lg: 760 };
+function heroSizes(image: Photo['image']): string {
+  const aspect = image.width / image.height;
+  const w = (h: number) => Math.round(h * aspect);
+  return `(min-width:1024px) ${w(BAND_HEIGHT.lg)}px, (min-width:640px) ${w(BAND_HEIGHT.sm)}px, ${w(BAND_HEIGHT.mobile)}px`;
+}
+function heroPrefetchUrl(image: Photo['image']): string {
+  const aspect = image.width / image.height;
+  return urlFor(image, Math.round(BAND_HEIGHT.lg * aspect));
+}
+
 // Whole album for the fullscreen lightbox: swipe through it without leaving
 // fullscreen, then Barba catches the page up on close.
 const lightbox = {
@@ -128,10 +147,12 @@ const lightbox = {
       </p>
     </div>
 
-    <!-- Side arrows (desktop) -->
+    <!-- Side arrows (desktop). data-prefetch-src: same-size hero image warmed
+         into cache ahead of a click — see initPrefetch() in app.ts. -->
     <a
       href={`/${lang}/photo/${prev._id}/`}
       data-nav-dir="prev"
+      data-prefetch-src={heroPrefetchUrl(prev.image)}
       class="detail-arrow detail-arrow--prev"
       aria-label={`${t.prev}: ${l(prev.title, lang)}`}
     >
@@ -140,6 +161,7 @@ const lightbox = {
     <a
       href={`/${lang}/photo/${next._id}/`}
       data-nav-dir="next"
+      data-prefetch-src={heroPrefetchUrl(next.image)}
       class="detail-arrow detail-arrow--next"
       aria-label={`${t.next}: ${l(next.title, lang)}`}
     >
@@ -162,7 +184,7 @@ const lightbox = {
             class="photo-img absolute inset-0 h-full w-full object-contain"
             src={urlFor(photo.image, 1920)}
             srcset={srcsetFor(photo.image)}
-            sizes="(min-width: 1024px) 85vw, 100vw"
+            sizes={heroSizes(photo.image)}
             width={photo.image.width}
             height={photo.image.height}
             alt={caption ? `${title} — ${caption}` : title}

@@ -144,6 +144,24 @@ for ja/zh/zh-tw.
   on this block for the derivation if it needs retuning). Side arrows
   (`.detail-arrow`) only render `lg:` and up — tablet relies on swipe/thumb
   nav instead, they didn't fit well there.
+  **Loading**: the hero's `sizes` attribute is computed per-photo in
+  `[id].astro` (`heroSizes()`) from the band-height tiers above times that
+  photo's own aspect ratio — it must track the band CSS. A stale
+  `85vw`/`100vw` value shipped once after the fixed-band redesign and went
+  unnoticed for a while: it told the browser to assume near-full-viewport
+  width, so the srcset picked an oversized candidate for every non-wide
+  (portrait/square) photo. The same per-photo width feeds
+  `heroPrefetchUrl()`, embedded as `data-prefetch-src` on the prev/next
+  arrows; `initPrefetch()` in `app.ts` warms those exact URLs via
+  `requestIdleCallback` shortly after each photo page settles, so the
+  adjacent image is normally already cached before it's ever clicked — this
+  is what actually hides the wait on desktop, more than any animation
+  could. The two must request the same width or the prefetch is wasted
+  under a different cache key. `.photo-media:has(> .photo-img:not(.is-loaded))`
+  in `global.css` adds a quiet breathing-pulse animation to the blurred LQIP
+  backdrop as a graceful fallback for the rare slow/uncached load (first
+  visit, slow connection, jumping albums via the switcher) — driven purely
+  by the existing `markLoaded()`/`.is-loaded` class toggle, no extra JS.
 
 **Page transitions** (Barba.js + GSAP, `src/scripts/app.ts`) — a family of
 five, not one style everywhere:

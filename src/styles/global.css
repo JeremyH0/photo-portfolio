@@ -320,6 +320,26 @@ html.has-cursor .cursor {
   opacity: 1;
 }
 
+/* Quiet "breathing" pulse on the blurred LQIP placeholder while the real
+   image is still loading — signals "in progress" rather than "stuck",
+   without a flashy shimmer sweep that would clash with the site's tone.
+   :has() lets this be pure CSS: no extra JS beyond the existing is-loaded
+   toggle in markLoaded(). */
+.photo-media:has(> .photo-img:not(.is-loaded)) {
+  animation: photo-media-pulse 1.7s ease-in-out infinite;
+}
+
+@keyframes photo-media-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-media:has(> .photo-img:not(.is-loaded)) {
+    animation: none;
+  }
+}
+
 /* Hover: JS-driven pointer parallax on .photo-media (no color frame). */
 .photo-card a {
   display: block;
