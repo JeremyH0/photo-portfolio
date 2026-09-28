@@ -37,7 +37,12 @@ accent underline on the active one); `initFilter` in `app.ts` filters
 client-side and animates the re-layout with **GSAP Flip** (surviving cards
 slide to new slots; entering/leaving cards fade+scale). Grid is responsive:
 1 col on phones, 2 on tablets (`sm:`), the 12-col offset pattern only at
-`lg:` (desktop). Photo detail pages
+`lg:` (desktop). That desktop pattern fakes masonry with fixed per-card
+margin offsets (`lg:mt-32`, `lg:-mt-4`, …) in the `pattern` array in
+`index.astro` — since card heights vary with each photo's aspect ratio, a
+large *negative* offset can crowd a neighbouring card's caption. It was
+`-mt-10` and had to be softened to `-mt-4`; if crowding reappears, reduce
+the negative offset rather than restructuring the pattern. Photo detail pages
 (`/[lang]/photo/[id]/`) are album-scoped — prev/next/counter/swipe all stay
 within the photo's own album; an album-switcher tab row at the top jumps to
 another album's first photo. Logic lives in `getStaticPaths()` in
