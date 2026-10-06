@@ -10,8 +10,17 @@ interface Props {
 const { lang, basePath, photographerName } = Astro.props;
 const t = ui[lang];
 
+// Same order as the home page panels, plus Shop (no panel yet). Photo detail
+// pages belong to Photography, so its link stays lit there too.
 const nav = [
-  { href: `/${lang}/`, label: t.work, active: basePath === '/' },
+  {
+    href: `/${lang}/photography/`,
+    label: t.photography,
+    active: basePath.startsWith('/photography') || basePath.startsWith('/photo/'),
+  },
+  { href: `/${lang}/videos/`, label: t.videos, active: basePath.startsWith('/videos') },
+  { href: `/${lang}/shop/`, label: t.shop, active: basePath.startsWith('/shop') },
+  { href: `/${lang}/contact/`, label: t.contactNav, active: basePath.startsWith('/contact') },
   { href: `/${lang}/about/`, label: t.about, active: basePath.startsWith('/about') },
 ];
 
@@ -19,18 +28,20 @@ const langHref = (code: string) => `/${code}${basePath === '/' ? '/' : basePath}
 ---
 
 <header class="relative z-40 flex items-center justify-between py-6 text-[0.72rem] uppercase tracking-[0.22em] md:py-8">
-  <a href={`/${lang}/`} class="font-medium normal-case tracking-[0.08em] text-ink">
-    {photographerName}
+  <!-- Wordmark: same size, case and tracking as the nav so the whole bar
+       reads as one line; weight + the accent dot make it the logo. -->
+  <a href={`/${lang}/`} class="site-logo font-bold text-ink" aria-label={photographerName}>
+    {photographerName}<span class="text-accent">.</span>
   </a>
 
   <!-- Desktop -->
-  <div class="hidden items-center gap-8 md:flex md:gap-12">
-    <nav class="flex gap-6 md:gap-8" aria-label="Main">
+  <div class="hidden items-center gap-10 lg:flex xl:gap-12">
+    <nav class="flex gap-7 xl:gap-8" aria-label="Main">
       {
         nav.map((item) => (
           <a
             href={item.href}
-            class:list={['transition-colors duration-300 hover:text-ink', item.active ? 'text-ink' : 'text-muted']}
+            class:list={['nav-link transition-colors duration-300 hover:text-ink', item.active ? 'is-active text-ink' : 'text-muted']}
             aria-current={item.active ? 'page' : undefined}
           >
             {item.label}
@@ -43,7 +54,7 @@ const langHref = (code: string) => `/${code}${basePath === '/' ? '/' : basePath}
       ◐
     </button>
 
-    <nav class="flex gap-3 border-l border-line pl-6 md:pl-8" aria-label="Language">
+    <nav class="flex gap-3 border-l border-line pl-8" aria-label="Language">
       {
         locales.map((loc) => (
           <a
@@ -62,8 +73,8 @@ const langHref = (code: string) => `/${code}${basePath === '/' ? '/' : basePath}
     </nav>
   </div>
 
-  <!-- Mobile -->
-  <div class="flex items-center gap-5 md:hidden">
+  <!-- Mobile + tablet -->
+  <div class="flex items-center gap-5 lg:hidden">
     <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">
       ◐
     </button>
@@ -81,7 +92,7 @@ const langHref = (code: string) => `/${code}${basePath === '/' ? '/' : basePath}
 </header>
 
 <!-- Full-screen mobile menu -->
-<div class="mobile-menu md:hidden" data-mobile-menu aria-hidden="true">
+<div class="mobile-menu lg:hidden" data-mobile-menu aria-hidden="true">
   <nav class="flex flex-col gap-2" aria-label="Main">
     {
       nav.map((item, i) => (

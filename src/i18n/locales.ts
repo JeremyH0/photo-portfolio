@@ -31,8 +31,11 @@ export function l(
 }
 
 type UIStrings = {
-  work: string;
+  photography: string;
+  videos: string;
+  shop: string;
   about: string;
+  contactNav: string;
   all: string;
   contact: string;
   tagline: string;
@@ -47,13 +50,29 @@ type UIStrings = {
   counterOf: string;
   albums: string;
   galleries: string;
+  /** Photography strip: how to move it (fine pointer / touch). */
+  dragHint: string;
+  swipeHint: string;
+  /** Home page panels: one-line teaser per section + the call to action. */
+  photographySub: string;
+  videosSub: string;
+  contactSub: string;
+  aboutSub: string;
+  enter: string;
+  videosSoonTitle: string;
+  videosSoonBody: string;
+  email: string;
+  comingSoon: string;
 };
 
 export const ui: Record<LocaleCode, UIStrings> = {
   en: {
-    work: 'Work',
+    photography: 'Photography',
+    videos: 'Videos',
+    shop: 'Shop',
     about: 'About',
     all: 'All',
+    contactNav: 'Contact',
     contact: 'Get in touch',
     tagline: 'Photography from Hokkaido and beyond',
     metaDescription: 'Photography portfolio — landscapes, street and portrait work.',
@@ -67,11 +86,25 @@ export const ui: Record<LocaleCode, UIStrings> = {
     counterOf: 'of',
     albums: 'Albums',
     galleries: 'Galleries',
+    dragHint: 'Scroll or drag',
+    swipeHint: 'Swipe',
+    photographySub: 'Landscapes, portraits and street — Hokkaido and beyond',
+    videosSub: 'Short films and moments in motion',
+    contactSub: 'Commissions, collaborations, or just to say hello',
+    aboutSub: 'The photographer behind the lens',
+    enter: 'Enter',
+    videosSoonTitle: 'Films are on their way',
+    videosSoonBody: 'New work is being edited. In the meantime, follow along on Instagram.',
+    email: 'Email',
+    comingSoon: 'Coming soon',
   },
   ja: {
-    work: '作品',
+    photography: '写真',
+    videos: '映像',
+    shop: 'ショップ',
     about: 'プロフィール',
     all: 'すべて',
+    contactNav: 'お問い合わせ',
     contact: 'お問い合わせ',
     tagline: '北海道とその先の風景を撮る',
     metaDescription: '写真ポートフォリオ — 風景、ストリート、ポートレート。',
@@ -85,11 +118,25 @@ export const ui: Record<LocaleCode, UIStrings> = {
     counterOf: '/',
     albums: 'アルバム',
     galleries: 'ギャラリー',
+    dragHint: 'スクロール・ドラッグ',
+    swipeHint: 'スワイプ',
+    photographySub: '北海道とその先の風景・ポートレート・ストリート',
+    videosSub: 'ショートフィルムと動く瞬間',
+    contactSub: '撮影のご依頼、コラボレーション、ご挨拶もお気軽に',
+    aboutSub: 'レンズの向こうの写真家',
+    enter: '見る',
+    videosSoonTitle: '映像作品を準備中です',
+    videosSoonBody: '現在編集中です。公開までは Instagram でお楽しみください。',
+    email: 'メール',
+    comingSoon: '近日公開',
   },
   zh: {
-    work: '作品',
+    photography: '摄影',
+    videos: '视频',
+    shop: '商店',
     about: '关于',
     all: '全部',
+    contactNav: '联系',
     contact: '联系我',
     tagline: '来自北海道与更远的摄影',
     metaDescription: '摄影作品集 — 风景、街头与人像。',
@@ -103,11 +150,25 @@ export const ui: Record<LocaleCode, UIStrings> = {
     counterOf: '/',
     albums: '相册',
     galleries: '图库',
+    dragHint: '滚动或拖动',
+    swipeHint: '滑动浏览',
+    photographySub: '北海道与更远处的风景、人像与街头',
+    videosSub: '短片与流动的瞬间',
+    contactSub: '约拍、合作，或只是打个招呼',
+    aboutSub: '镜头背后的摄影师',
+    enter: '进入',
+    videosSoonTitle: '影片即将上线',
+    videosSoonBody: '新作品正在剪辑中。在此之前，欢迎在 Instagram 上关注。',
+    email: '邮箱',
+    comingSoon: '即将推出',
   },
   'zh-tw': {
-    work: '作品',
+    photography: '攝影',
+    videos: '影片',
+    shop: '商店',
     about: '關於',
     all: '全部',
+    contactNav: '聯絡',
     contact: '聯絡我',
     tagline: '來自北海道與更遠的攝影',
     metaDescription: '攝影作品集 — 風景、街頭與人像。',
@@ -121,6 +182,17 @@ export const ui: Record<LocaleCode, UIStrings> = {
     counterOf: '/',
     albums: '相簿',
     galleries: '圖庫',
+    dragHint: '滾動或拖曳',
+    swipeHint: '滑動瀏覽',
+    photographySub: '北海道與更遠處的風景、人像與街頭',
+    videosSub: '短片與流動的瞬間',
+    contactSub: '約拍、合作，或只是打個招呼',
+    aboutSub: '鏡頭背後的攝影師',
+    enter: '進入',
+    videosSoonTitle: '影片即將上線',
+    videosSoonBody: '新作品正在剪輯中。在此之前，歡迎在 Instagram 上關注。',
+    email: '電子郵件',
+    comingSoon: '即將推出',
   },
 };
 

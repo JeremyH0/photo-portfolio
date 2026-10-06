@@ -52,6 +52,14 @@ export async function getPhotos(): Promise<Photo[]> {
   );
 }
 
+/** Specific photos by document id (missing ids are simply absent). */
+export async function getPhotosByIds(ids: string[]): Promise<Photo[]> {
+  return sanity.fetch(
+    `*[_type == 'photo' && _id in $ids && defined(image.asset)] ${PHOTO_PROJECTION}`,
+    { ids },
+  );
+}
+
 export async function getCategories(): Promise<Category[]> {
   // Only categories that actually contain photos, in the order set by
   // drag-and-drop in the Studio ("Categories" panel — orderRank field).

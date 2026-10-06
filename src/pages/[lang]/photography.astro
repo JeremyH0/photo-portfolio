@@ -1,0 +1,128 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getLocalePaths, l, ui, type LocaleCode } from '../../i18n/locales';
+import { getCategories, getPhotos, getSiteSettings } from '../../lib/queries';
+import { lightboxSrcset, srcsetFor, urlFor } from '../../lib/image';
+
+export function getStaticPaths() {
+  return getLocalePaths();
+}
+
+const lang = Astro.params.lang as LocaleCode;
+const t = ui[lang];
+
+const [photos, categories, settings] = await Promise.all([
+  getPhotos(),
+  getCategories(),
+  getSiteSettings(),
+]);
+
+// Photos per gallery, for the switcher counts.
+const countBySlug = new Map<string, number>();
+for (const p of photos) {
+  const slug = p.category?.slug ?? 'other';
+  countBySlug.set(slug, (countBySlug.get(slug) ?? 0) + 1);
+}
+const pad = (n: number) => String(n).padStart(2, '0');
+const filters = [
+  { slug: 'all', label: t.all, count: photos.length },
+  ...categories.map((cat) => ({ slug: cat.slug, label: l(cat.title, lang), count: countBySlug.get(cat.slug) ?? 0 })),
+];
+---
+
+<!-- One screen, after detroit.paris: the title and gallery switcher up top,
+     then an endless strip of square photos that grow from tiny (left) to
+     large (right) as they travel. Driven by initStrip() in app.ts. -->
+<Layout
+  lang={lang}
+  namespace="gallery"
+  pageTitle={t.photography}
+  title={`${t.photography} — ${settings.photographerName}`}
+  photographerName={settings.photographerName}
+  fill
+>
+  <section class="gallery-head" id="top">
+    <p class="hero-line mb-4 text-[0.72rem] uppercase tracking-[0.24em] text-muted">
+      {t.tagline}
+    </p>
+    <h1 class="hero-title font-serif text-[clamp(2.6rem,7.5vw,6.5rem)] leading-[0.98] tracking-[-0.01em]">
+      <span data-split>{t.photography}</span><span class="text-accent">.</span>
+    </h1>
+
+    <div class="hero-line mt-7 flex flex-wrap items-end justify-between gap-x-10 gap-y-4 md:mt-9">
+      <nav class="gallery-filters" aria-label={t.galleries}>
+        {
+          filters.map((f) => (
+            <button type="button" class="gallery-filter" data-filter={f.slug} aria-pressed={f.slug === 'all' ? 'true' : 'false'}>
+              <span class="gallery-filter__dot" aria-hidden="true" />
+              <span class="gallery-filter__label"><span>{f.label}</span><span aria-hidden="true">{f.label}</span></span>
+              <span class="gallery-filter__count">{pad(f.count)}</span>
+            </button>
+          ))
+        }
+      </nav>
+      <p class="gallery-hint" aria-hidden="true">
+        <span class="gallery-hint__fine">{t.dragHint}</span>
+        <span class="gallery-hint__touch">{t.swipeHint}</span>
+        <span class="gallery-hint__arrow">↔</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- A click opens the photo straight in the fullscreen viewer (over the
+       chosen gallery); the photo pages stay for shared links / new tabs. -->
+  <section
+    class="gallery-strip"
+    data-strip
+    data-viewer-labels={JSON.stringify({ zoom: t.zoom, close: t.close, prev: t.prev, next: t.next })}
+    aria-label={t.photography}
+  >
+    {
+      photos.map((photo, i) => {
+        const title = l(photo.title, lang);
+        return (
+          <a
+            class="strip-item"
+            href={`/${lang}/photo/${photo._id}/`}
+            data-photo-link={photo._id}
+            data-category={photo.category?.slug}
+            data-title={title}
+            data-album={l(photo.category?.title, lang)}
+            data-pswp-src={urlFor(photo.image, 1920)}
+            data-pswp-srcset={lightboxSrcset(photo.image)}
+            data-pswp-w={photo.image.width}
+            data-pswp-h={photo.image.height}
+            data-pswp-msrc={photo.image.lqip}
+            data-cursor-label={t.view}
+            aria-label={title}
+            draggable="false"
+            style={`--ar: ${photo.image.width} / ${photo.image.height}`}
+            hidden={i > 11}
+          >
+            <span class="strip-item__media photo-media" style={`background-image: url(${photo.image.lqip})`}>
+              <img
+                class="photo-img strip-item__img"
+                src={urlFor(photo.image, 768)}
+                srcset={srcsetFor(photo.image)}
+                sizes="(min-width:768px) 40vw, 92vw"
+                width={photo.image.width}
+                height={photo.image.height}
+                alt=""
+                loading={i < 8 ? 'eager' : 'lazy'}
+                decoding="async"
+                draggable="false"
+              />
+            </span>
+            <span class="strip-item__caption">
+              <span>{title}</span>
+              <span>{l(photo.category?.title, lang)}</span>
+            </span>
+          </a>
+        );
+      })
+    }
+    <p class="strip-tag" data-strip-tag aria-hidden="true">
+      <span class="strip-tag__inner"><span class="strip-tag__dot"></span><span data-strip-tag-text></span></span>
+    </p>
+  </section>
+</Layout>

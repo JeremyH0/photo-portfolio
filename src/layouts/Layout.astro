@@ -7,15 +7,17 @@ import { localePathPattern, locales, ui, type LocaleCode } from '../i18n/locales
 
 interface Props {
   lang: LocaleCode;
-  namespace: 'gallery' | 'about' | 'photo';
+  namespace: 'home' | 'gallery' | 'videos' | 'shop' | 'contact' | 'about' | 'photo';
   /** Localized section name shown by the overlay transition. */
   pageTitle: string;
   title: string;
   description?: string;
   photographerName: string;
+  /** Home: fit header + content + a slim footer into one screen. */
+  fill?: boolean;
 }
 
-const { lang, namespace, pageTitle, title, description, photographerName } = Astro.props;
+const { lang, namespace, pageTitle, title, description, photographerName, fill = false } = Astro.props;
 
 const htmlLang = locales.find((loc) => loc.code === lang)?.htmlLang ?? 'en';
 // Path without the locale prefix, for hreflang alternates + the language switcher.
@@ -29,7 +31,15 @@ const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <meta name="description" content={description ?? ui[lang].metaDescription} />
+    <!-- Icon: viewfinder corners + the wordmark's gold dot. Sources and the
+         generator notes are in AGENTS.md (Favicon). -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <!-- Tints the phone browser bar: the page's own paper colour per mode. -->
+    <meta name="theme-color" content="#f7f2ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#151210" media="(prefers-color-scheme: dark)" />
     <link rel="preconnect" href="https://cdn.sanity.io" crossorigin />
     <link rel="preload" href={nimbusSansRegularUrl} as="font" type="font/woff2" crossorigin />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
@@ -64,10 +74,10 @@ const basePath = Astro.url.pathname.replace(localePathPattern, '') || '/';
       >
         <div class="mx-auto flex min-h-svh max-w-[1600px] flex-col px-5 md:px-10">
           <Header lang={lang} basePath={basePath} photographerName={photographerName} />
-          <main class="flex-1">
+          <main class:list={['flex-1', fill && 'flex flex-col']}>
             <slot />
           </main>
-          <Footer lang={lang} photographerName={photographerName} />
+          <Footer lang={lang} photographerName={photographerName} compact={fill} />
         </div>
       </div>
     </div>

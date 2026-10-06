@@ -1,0 +1,64 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getLocalePaths, ui, type LocaleCode } from '../../i18n/locales';
+import { getSiteSettings } from '../../lib/queries';
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL, socialsWithoutInstagram } from '../../lib/site';
+
+export function getStaticPaths() {
+  return getLocalePaths();
+}
+
+const lang = Astro.params.lang as LocaleCode;
+const t = ui[lang];
+const settings = await getSiteSettings();
+const socials = socialsWithoutInstagram(settings);
+---
+
+<Layout
+  lang={lang}
+  namespace="contact"
+  pageTitle={t.contactNav}
+  title={`${t.contactNav} — ${settings.photographerName}`}
+  photographerName={settings.photographerName}
+>
+  <section class="flex min-h-[70svh] flex-col justify-center py-16 md:py-24" id="top">
+    <p class="about-reveal mb-6 text-[0.72rem] uppercase tracking-[0.24em] text-muted">
+      {t.contactNav}
+    </p>
+    <h1 class="about-reveal font-serif text-[clamp(2.6rem,7.5vw,6.5rem)] leading-[0.98] tracking-[-0.01em]">
+      {t.contact}<span class="text-accent">.</span>
+    </h1>
+    <p class="about-reveal mt-6 max-w-xl text-base leading-relaxed text-muted md:text-lg">
+      {t.contactSub}
+    </p>
+
+    <div class="about-reveal mt-16 grid gap-x-12 gap-y-10 border-t border-line pt-10 md:mt-24 md:grid-cols-2">
+      {
+        settings.contactEmail && (
+          <div>
+            <p class="mb-3 text-[0.62rem] uppercase tracking-[0.3em] text-muted">{t.email}</p>
+            <a href={`mailto:${settings.contactEmail}`} class="contact-link">
+              {settings.contactEmail}
+            </a>
+          </div>
+        )
+      }
+      <div>
+        <p class="mb-3 text-[0.62rem] uppercase tracking-[0.3em] text-muted">Instagram</p>
+        <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" class="contact-link">
+          {INSTAGRAM_HANDLE}
+        </a>
+      </div>
+      {
+        socials.map((link) => (
+          <div>
+            <p class="mb-3 text-[0.62rem] uppercase tracking-[0.3em] text-muted">{link.label ?? ''}</p>
+            <a href={link.url} target="_blank" rel="noopener noreferrer" class="contact-link">
+              {link.url?.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+            </a>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+</Layout>

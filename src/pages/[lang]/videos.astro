@@ -1,0 +1,125 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getLocalePaths, ui, type LocaleCode } from '../../i18n/locales';
+import { getSiteSettings } from '../../lib/queries';
+import { srcsetFor, urlFor } from '../../lib/image';
+import { resolveShots, type ResolvedShot } from '../../lib/shots';
+import { INSTAGRAM_URL, VIDEO_REEL } from '../../lib/site';
+
+export function getStaticPaths() {
+  return getLocalePaths();
+}
+
+const lang = Astro.params.lang as LocaleCode;
+const t = ui[lang];
+
+// No video content model yet — until Nick's films exist this page is a
+// "coming soon" poster playing the same still-photo reel as the home panel.
+const [reel, settings] = await Promise.all([resolveShots(VIDEO_REEL), getSiteSettings()]);
+
+// Cover-fit inside a box min(94vw,1520px) wide and 16:9 (4:5 on phones):
+// a photo wider than the box's shape renders wider than the box.
+function posterSizes(shot: ResolvedShot): string {
+  const aspect = shot.width / shot.height;
+  const wide = Math.max(1, (9 / 16) * aspect).toFixed(3);
+  const tall = Math.max(1, (5 / 4) * aspect).toFixed(3);
+  return `(min-width:640px) calc(min(94vw, 1520px) * ${wide}), calc(94vw * ${tall})`;
+}
+
+// Text circling the play button, repeated to go all the way round (short
+// CJK labels need more repeats; textLength spreads them evenly).
+const ringText = Array(t.comingSoon.length > 6 ? 3 : 4)
+  .fill(`${t.comingSoon} • `)
+  .join('');
+---
+
+<Layout
+  lang={lang}
+  namespace="videos"
+  pageTitle={t.videos}
+  title={`${t.videos} — ${settings.photographerName}`}
+  photographerName={settings.photographerName}
+>
+  <section class="flex min-h-[34svh] flex-col justify-end pb-12 md:min-h-[40svh] md:pb-16" id="top">
+    <p class="hero-line mb-4 text-[0.72rem] uppercase tracking-[0.24em] text-muted">
+      {t.videosSub}
+    </p>
+    <h1 class="hero-title font-serif text-[clamp(2.6rem,7.5vw,6.5rem)] leading-[0.98] tracking-[-0.01em]">
+      <span data-split>{t.videos}</span><span class="text-accent">.</span>
+    </h1>
+  </section>
+
+  <section class="about-reveal border-t border-line pt-10 md:pt-12">
+    <div
+      class="photo-media videos-poster relative aspect-[4/5] overflow-hidden rounded-[2px] sm:aspect-video"
+      style={`background-image: url(${reel[0].placeholder})`}
+      data-slideshow
+    >
+      {
+        reel.map((shot, k) => {
+          const src = urlFor(shot.photo.image, 1920, undefined, shot.rect);
+          const srcset = srcsetFor(shot.photo.image, undefined, shot.rect);
+          return (
+            <div class:list={['reel-slide', k === 0 && 'is-current']} data-slide hidden={k > 0}>
+              <img
+                class="photo-img absolute inset-0 h-full w-full object-cover"
+                src={k === 0 ? src : undefined}
+                srcset={k === 0 ? srcset : undefined}
+                data-src={k > 0 ? src : undefined}
+                data-srcset={k > 0 ? srcset : undefined}
+                sizes={posterSizes(shot)}
+                width={shot.width}
+                height={shot.height}
+                style={`object-position: ${shot.focus}`}
+                alt=""
+                loading="eager"
+                decoding="async"
+              />
+            </div>
+          );
+        })
+      }
+      <div class="videos-poster__shade" aria-hidden="true" />
+
+      <p class="videos-poster__badge">
+        <span class="videos-poster__rec" aria-hidden="true"></span>{t.comingSoon}
+      </p>
+
+      <!-- Fake play button: "coming soon" circles it; a click only teases. -->
+      <button type="button" class="videos-poster__play" data-fake-play aria-label={`${t.comingSoon} — ${t.videosSoonTitle}`}>
+        <svg class="videos-poster__ring" viewBox="0 0 200 200" aria-hidden="true">
+          <path id="soon-ring" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0" fill="none" />
+          <text><textPath href="#soon-ring" textLength="488" lengthAdjust="spacing">{ringText}</textPath></text>
+        </svg>
+        <span class="videos-poster__disc" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+        </span>
+        <span class="videos-poster__toast" aria-hidden="true">{t.videosSoonTitle}</span>
+      </button>
+
+      <!-- Fake player bar, running with the reel so it reads as paused film. -->
+      <div class="videos-poster__bar" aria-hidden="true">
+        <span data-fake-time>0:00</span>
+        <span class="videos-poster__track"><span class="videos-poster__fill" data-fake-fill></span></span>
+        <span>—:—</span>
+      </div>
+
+      <div class="videos-poster__content">
+        <h2 class="font-serif text-[clamp(1.7rem,3.6vw,3.2rem)] leading-[1.1]">
+          {t.videosSoonTitle}<span class="home-panel__dot">.</span>
+        </h2>
+        <p class="mt-4 max-w-md text-[0.95rem] leading-relaxed opacity-85">{t.videosSoonBody}</p>
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="home-panel__cta mt-6 inline-flex"
+         
+        >
+          Instagram
+          <span class="home-panel__cta-icon" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </div>
+  </section>
+</Layout>

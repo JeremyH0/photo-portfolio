@@ -18,8 +18,9 @@ straight into changes.
 ## Architecture
 
 **i18n**: 4 locales — `en` (default), `ja`, `zh` (Simplified), `zh-tw`
-(Traditional). Routes are `/[lang]/`, `/[lang]/about/`,
-`/[lang]/photo/[id]/`, root redirects to `/en/`. Single source of truth:
+(Traditional). Routes are `/[lang]/` (home), `/[lang]/photography/`
+(the gallery), `/[lang]/photo/[id]/`, `/[lang]/videos/`, `/[lang]/contact/`,
+`/[lang]/about/`; root redirects to `/en/`. Single source of truth:
 `src/i18n/locales.ts` (`locales` array, `ui` strings record, `l()` helper
 for pulling a field out of a Sanity localized object). Mirror any new
 locale in `astro.config.mjs` (`i18n.locales`) and the Studio's
@@ -30,24 +31,142 @@ types), `src/lib/image.ts` (`urlFor`/`srcsetFor` — always route images
 through these, never raw Sanity URLs). Env vars `SANITY_PROJECT_ID` /
 `SANITY_DATASET` via `.env` (see `.env.example`).
 
+**Home page** (`/[lang]/`, `index.astro`): four expanding image panels —
+Photography | Videos | Contact | About, in that order (Nick's request) —
+adapted from aaronjamieson.com's home carousel. One panel is open (flex-grow
+6, or 4.2 when stacked), the rest are slim strips with a vertical label
+(`writing-mode: vertical-rl`, deliberately *not* rotated: rotation would
+flip CJK upside down). Click a strip → it opens; click the open one → enter
+that section. Logic in `initHome()` (`app.ts`): the expanding click calls
+`stopPropagation()` because Barba listens on `document` and ignores
+`defaultPrevented`; focus only opens a panel when `:focus-visible` (a mouse
+click focuses the link first, and opening on that would turn the click into
+a navigation). **Fast-switching gotchas** (both reported by Jeremy as a
+"flash" when clicking quickly between panels): (1) a click on a panel that
+opened <650ms ago is swallowed (`ENTER_GRACE_MS`, pointer clicks only via
+`e.detail > 0`) — otherwise a quick second click / double-click landed on
+the just-opened panel and launched the full-screen `panel-expand`
+transition mid-switch; (2) closed strips are dimmed by an opacity-fading
+dark layer (`.home-panel__media::after`), never `filter: brightness()` on
+the photos — animated filters on large zooming images can paint undimmed
+frames on real GPUs (Safari especially). Panels are `user-select: none`.
+Phones (<768px) stack the panels vertically as a true
+accordion. Every panel plays a reel of 5–6 photos, one colour mood per
+panel so they stay distinct (Photography = one per album, Contact = warm
+night light, About = calm/cool, Videos = motion). Each panel's photos are `Shot`s (`src/lib/shots.ts`) picked by
+Sanity `_id` in the `PANELS` array — with an object-position `focus` and an
+optional `crop` (fractions of the frame) that Sanity's CDN applies via
+`rect`, so the cut-away part is never sent to the browser. Contact's
+*Golden Reach* uses it to keep the model's face out in every layout,
+including the full-screen transition clone — use `crop`, not CSS
+positioning, whenever something must never show. Faces are otherwise fine
+(Jeremy confirmed), but About's reel opens on a scene, not a person, since a
+lone portrait there reads as Nick (no photo of him exists yet).
+A deleted photo falls back to another one; not yet editable in the Studio.
+**Reels** (`[data-slideshow]`, `initSlideshows()`): cross-fade stacked
+`.reel-slide`s every 3.2s with a slow zoom/drift; reels on one page are
+offset 0.8s so changes ripple across panels instead of flipping together.
+Only the first still ships with the page; each reel fetches just the *next*
+still (`data-src(set)`) ahead of its turn — loading all four reels up front
+was ~20 images, too heavy on phones. Stops when its root leaves the DOM.
+**GPU budget — the real "flash" bug** (Jeremy's screen recording, all
+browsers): with every loaded still left in the page at opacity 0, each with
+its own transform transition, inside rounded-corner panels, four reels
+reached ~22 Retina-sized composited layers and browsers began dropping image
+tiles — single frames where photos were only partly painted and the blurry
+panel placeholder (of a *different* still) showed through. Rules now: only
+the current still (+ the previous one during the 1.2s cross-fade) is
+rendered, every other slide is `[hidden]`; a still is `img.decode()`d before
+it's revealed; NO scale animation on hover/open and no hover "peek"
+resize (each settled scale change re-rasterizes a big photo — sweeping the
+pointer across the strips triggered it constantly; Jeremy found the glitch
+tracked mouse movement); hover feedback is the dim layer's opacity only;
+reel slides are `will-change: transform` so Ken Burns never re-rasters,
+and on the home page each slide is a FIXED-size frame (70vw × panel height;
+phones: full width × max(52svh, 24rem)) — never `inset: 0` to the panel,
+whose size animates: a layer resized every frame piled up re-raster work on
+fast clicking and glitched for seconds;
+panels have no border-radius; the placeholder
+background is removed once the first still loads. Headless runs (even with GPU
+flags) do NOT reproduce it. What does: Playwright driving the real, visible
+Google Chrome (`chromium.launch({ channel: 'chrome', headless: false })`,
+`viewport: null`, so it gets the display's real 2x DPR), recording every
+compositor frame via CDP `Page.startScreencast` during rapid clicks +
+pointer sweeps, then counting one-frame outliers (frame differs from both
+neighbours while they match each other). Pre-fix build: 37 glitches / 20s;
+fixed build: 0 across four runs, incl. full-screen window and 4x CPU
+throttle. Re-run that harness for any change to the home panels.
+The `panel-expand` transition clones whichever still is current. The Videos
+page poster plays the same `VIDEO_REEL` (`src/lib/site.ts`) until real
+films exist. The panel `<img>` keeps
+the open panel's size and stays centered so opening just unmasks it (no
+re-crop mid-animation); its `sizes` is height-aware per photo
+(`panelSizes()`), because on tall screens height, not width, decides how
+wide a cover-fitted landscape renders — a plain `70vw` made tablet/phone
+panels visibly soft. Layout prop `fill` makes home a one-screen page with
+a compact footer. **Videos** is a "coming soon" poster for now (no video
+content model exists yet), dressed as a paused film: a "● Coming soon"
+badge, a fake play button circled by rotating "COMING SOON •" text (SVG
+`textPath`; a click only teases "Films are on their way"), and a fake
+player bar whose progress + timecode run once per reel cycle
+(`initFakePlayer()`). **Gotcha**: reel slides carry z-index 1–2 (see
+the GPU notes above), so every overlay on a reel needs z-index ≥ 3 — the
+poster's play button/text once silently disappeared under the photos. The
+home Videos panel shows the same badge. **Contact** reads email from Site Settings plus
+the Instagram constant in `src/lib/site.ts`.
+
+**Shop** (`/[lang]/shop/`): a "coming soon" teaser — Nick has nothing to sell
+yet, so it stays deliberately vague (no prices, sizes or ordering; Jeremy
+asked for that after a fuller store mock-up). Photos in `src/lib/shop.ts`,
+copy in `src/i18n/shop.ts`; prints render as framed mock-ups on a lit
+"wall" (`hang()` sizes the frame so any aspect fits). In the nav, no home
+panel.
+
+**Header**: wordmark (`.site-logo`) is uppercase/tracked like the nav with
+an accent dot, so the bar reads as one line; the photographer's name is no
+longer repeated as a giant hero on the gallery (that hero now says
+"Photography."). Desktop nav shows from `lg:` — four items don't fit at
+`md:`, so tablets use the hamburger menu.
+
 **Albums / galleries**: a Sanity `category` doubles as an "album" (labelled
-"Galleries" in the gallery UI). The gallery (`/[lang]/`) shows every photo in
-one mixed editorial grid with a switcher up top (per-gallery photo counts,
-accent underline on the active one); `initFilter` in `app.ts` filters
-client-side and animates the re-layout with **GSAP Flip** (surviving cards
-slide to new slots; entering/leaving cards fade+scale). Grid is responsive:
-1 col on phones, 2 on tablets (`sm:`), the 12-col offset pattern only at
-`lg:` (desktop). That desktop pattern fakes masonry with fixed per-card
-margin offsets (`lg:mt-32`, `lg:-mt-4`, …) in the `pattern` array in
-`index.astro` — since card heights vary with each photo's aspect ratio, a
-large *negative* offset can crowd a neighbouring card's caption. It was
-`-mt-10` and had to be softened to `-mt-4`; if crowding reappears, reduce
-the negative offset rather than restructuring the pattern. Photo detail pages
+"Galleries" in the gallery UI). The gallery (`/[lang]/photography/`, a
+one-screen `fill` page from 768px up) is modelled on **detroit.paris's
+home strip** (Jeremy's pick; it replaced an editorial grid + GSAP Flip
+filter): title, then the galleries as ●-dot choices (label rolls on hover,
+counts), then an endless strip of photos along the bottom. Logic:
+`initGallery()` → `initStrip()` in `app.ts`. Each item sits at
+x = i·spacing − position on a looping track and is scaled by x (tiny at the
+left, ~1.6× base at the right, bigger on top); the translate is applied
+*inside* the scale so screen x = x·scale — that's what makes the gaps widen
+into a staircase (same trick as detroit's `main.js`: `transform` + the
+`scale` property). The element is sized at the largest *visible* scale and
+only scaled down, so photos stay sharp under `will-change: transform`.
+Wheel (anywhere on the page), drag, ←/→ move it, with lerp smoothing;
+switching gallery folds the stairs into the left corner and grows the new
+set in (small galleries are cloned to fill the loop). Hover shows one
+"● Title" tag. **Clicking a photo opens it straight in the fullscreen
+viewer** (`openFromGallery()` → the shared `openViewer()`, same PhotoSwipe
+setup as the photo page), paging through the chosen gallery — Jeremy asked
+to skip the photo page in between. On close the strip glides to the photo
+you ended on (the list scrolls to it). Modified clicks (cmd/ctrl/middle)
+still open the photo page, which stays for shared links; a drag never
+opens anything. **GPU budget** (home "flash" lesson again): only items
+on the at-rest stretch of track (x ≤ `xEdge`) are ever un-`[hidden]` —
+mid-switch everything crams into the corner and ~20 photo layers at once
+produced a one-frame blank in the real-Chrome frame detector. Tall
+tablet screens get portrait boxes (`--strip-ratio`) so the strip fills the
+height. **Phones (<768px) keep a vertical list** instead (Jeremy: on a
+phone the strip only shows one photo properly, the rest are slivers):
+`initGalleryList()` — same markup, full-width photos in their own aspect
+(`--ar`) with a caption, filtered in place, rising in on scroll. The two
+modes swap live on a `matchMedia` change (each owns an AbortController and
+undoes its inline styles on abort). Photo detail pages
 (`/[lang]/photo/[id]/`) are album-scoped — prev/next/counter/swipe all stay
 within the photo's own album; an album-switcher tab row at the top jumps to
 another album's first photo. Logic lives in `getStaticPaths()` in
 `src/pages/[lang]/photo/[id].astro` (groups photos by category, computes
-per-album index/prev/next at build time).
+per-album index/prev/next at build time). Its "Back to gallery" link goes
+to `/[lang]/photography/`.
 
 **Design system** (`src/styles/global.css`, Tailwind v4 `@theme`):
 Currently the **"champagne" (light) / "velvet" (dark)** palette — warm
@@ -72,6 +191,26 @@ per visit and then silently stopped replaying until you touched something
 else first. Tying it to the actual `[data-theme]` attribute instead makes
 it replay every toggle, identically on mouse, touch, and keyboard.
 
+**CJK + reveal masks (gotcha)**: at the tight line-heights used for big
+titles (~1.0), Japanese/Chinese glyphs (Hiragino/PingFang) draw ABOVE the
+line box, so any `overflow: hidden` reveal mask sliced their tops off (the
+home panel titles, and the split-char hero titles on Photography/Videos —
+"攝影" lost its top strokes). Masks now get `padding: .25em 0 .15em` cancelled
+by equal negative margins (layout unchanged), and the hidden start offset
+is 140–145% so nothing peeks pre-reveal. Any new masked text reveal needs
+the same. Found with a real-Chrome detector: screenshot each text element
+whose overflow clips, again with `overflow: visible`, and diff.
+
+**Favicon**: a viewfinder (four focus-frame corners) with the wordmark's
+gold dot, cream on an espresso rounded tile (`public/favicon.svg`). Picked
+from three concepts (viewfinder / aperture / N monogram) shown to Jeremy at
+real tab size. Also in `public/`: `favicon.ico` (16/32/48 PNG-in-ICO),
+`apple-touch-icon.png` + `icon-192/512.png` (full-bleed square — the OS
+rounds them), `icon-maskable-512.png` (mark scaled into the 80% safe zone)
+and `site.webmanifest`. They're rendered from the SVG by real Chrome, so
+after changing the SVG regenerate the PNG/ICO files rather than editing
+them. `theme-color` follows light/dark (paper colours), not the icon.
+
 **Typography**: Nimbus Sans (URW++'s Helvetica-metric twin) is the single
 site-wide face — `--font-serif` just aliases `--font-sans`. Self-hosted as
 two static WOFF2 files in `src/fonts/nimbus-sans/` (`@font-face` in
@@ -94,12 +233,10 @@ for ja/zh/zh-tw.
   `src/scripts/app.ts`): dot + trailing ring, both gold/accent-colored;
   grows over links; shows a localized text badge (View/Zoom/Close) over
   labelled elements (`data-cursor-label` attribute). Fine pointers only.
-- Scroll parallax (`initParallax`): hero title + gallery images drift at
-  different speeds via one shared `requestAnimationFrame` loop
-  (`parallaxItems` array, rebuilt per page in `initPage`).
-- Hover on gallery images (`initHoverParallax`): zoom-in inside the frame +
-  lean toward the pointer, folded into the same transform the scroll
-  parallax writes (via `img.dataset.hoverScale`) so the two never fight.
+- Scroll parallax (`initParallax`): elements with `data-parallax="<speed>"`
+  (e.g. the About hero) drift via one shared `requestAnimationFrame` loop
+  (`parallaxItems` array, rebuilt per page in `initPage`). The old gallery
+  grid's image parallax + hover zoom went with the grid.
 - Mobile hamburger menu (`initMenu`): full-screen, clip-path reveal,
   numbered serif links, scroll-locked.
 - Photo detail fullscreen viewer (`initDetail`): click the hero to open a
@@ -169,9 +306,13 @@ for ja/zh/zh-tw.
   by the existing `markLoaded()`/`.is-loaded` class toggle, no extra JS.
 
 **Page transitions** (Barba.js + GSAP, `src/scripts/app.ts`) — a family of
-five, not one style everywhere:
-1. `flip-photo` — clicking a gallery photo: the image itself flies/expands
-   into the detail page hero (shared-element FLIP, `.flip-clone`).
+five, not one style everywhere (a sixth, `flip-photo` — gallery photo flying
+into its page — was removed once gallery clicks started opening the
+fullscreen viewer instead of navigating):
+0. `panel-expand` — clicking the open home panel: its photo grows from the
+   panel to fill the screen (`.panel-clone`), the page swaps underneath,
+   then the photo wipes upward off the new page. `wave` excludes home-panel
+   triggers to stay mutually exclusive.
 2. `photo-slide` — prev/next inside an album: the wave, sweeping
    horizontally in the travel direction (next: left → right, prev:
    right → left; `WAVE_H` keyframes). **Gotcha**: this transition used to
@@ -208,6 +349,12 @@ client-side navigations. `initPage()` guards against double-init via
 `container.dataset.appInit` — don't remove this guard, it silently causes
 double-bound listeners (broke the hamburger toggle once, duplicated
 animations).
+Each feature init in `initPage()` runs in its own try/catch: it executes
+inside Barba's `afterEnter`, and one throwing aborted the rest of the
+transition (home → Videos stayed frozen on the `panel-expand` photo clone).
+The throw was a GSAP gotcha: `fromTo()` renders — and fires `onUpdate` —
+before it returns, so an `onUpdate` that references the returned tween
+const hits the TDZ. Use `this` inside the callback instead.
 
 ## Verification habit
 Before calling a visual/interactive change done: build (`npm run build`),
