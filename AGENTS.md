@@ -7,10 +7,26 @@ This file covers the site's own architecture so a new session can jump
 straight into changes.
 
 ## Live
-- https://photo-portfolio-d1s.pages.dev — Cloudflare Pages, auto-deploys on
-  push to `main` (no CI config needed, it's a dashboard-connected GitHub
-  integration). Check deploy status via the GitHub check-runs API on the
-  latest commit, or the Cloudflare dashboard.
+- https://nickhuangphoto.com — Cloudflare Pages project `nickhuangphoto`
+  (also https://nickhuangphoto.pages.dev), auto-deploys on push to `main`
+  (no CI config needed, it's a dashboard-connected GitHub integration).
+  Check deploy status via the GitHub check-runs API on the latest commit, or
+  the Cloudflare dashboard.
+- **Accounts**: the domain and the Pages project live in **Nick's own
+  Cloudflare account** (registered 2026-10-09 via Cloudflare Registrar, in his
+  name, auto-renew on); Jeremy is a Super Administrator member and switches
+  to it from his own login. The project moved there from Jeremy's account
+  (old URL `photo-portfolio-d1s.pages.dev`, now gone) because a Pages apex
+  domain must be in the same account as the project — and a GitHub repo can
+  only be connected to Pages in ONE Cloudflare account, so the old project
+  had to be deleted first. `www.` 301s to the apex (a Single Redirect rule,
+  `https://www.nickhuangphoto.com/*` → `https://nickhuangphoto.com/${1}` —
+  the template's `https://www.*` would capture the host too); Always Use
+  HTTPS is on. `site:` in `astro.config.mjs` drives canonical/hreflang.
+- **Testing the domain from Jeremy's network**: a Fortinet firewall there
+  blocks "Newly Registered Domain" (and re-signs TLS with its own CA, so curl
+  fails with "unable to get local issuer certificate"). That's local only —
+  check from outside, e.g. the check-host.net API, or a phone off Wi-Fi.
 - Local dev: `npm run dev` → localhost:4321. Preview a production build:
   `npm run build && npx astro preview --port 4399` (4321 may be occupied by
   a stale background server — check `lsof -iTCP -sTCP:LISTEN` first).

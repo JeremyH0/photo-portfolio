@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 // https://astro.build/config
 export default defineConfig({
   // Cloudflare Pages production domain (update if a custom domain is added)
-  site: 'https://photo-portfolio-d1s.pages.dev',
+  site: 'https://nickhuangphoto.com',
   i18n: {
     defaultLocale: 'en',
     locales: ['en', 'ja', 'zh', 'zh-tw'],
