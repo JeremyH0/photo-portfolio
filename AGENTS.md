@@ -223,7 +223,9 @@ from three concepts (viewfinder / aperture / N monogram) shown to Jeremy at
 real tab size. Also in `public/`: `favicon.ico` (16/32/48 PNG-in-ICO),
 `apple-touch-icon.png` + `icon-192/512.png` (full-bleed square — the OS
 rounds them), `icon-maskable-512.png` (mark scaled into the 80% safe zone)
-and `site.webmanifest`. They're rendered from the SVG by real Chrome, so
+and `site.webmanifest` (`"display": "browser"` on purpose: `standalone` made
+Android Chrome offer to "Install app", which Jeremy found odd for a
+portfolio — home-screen icons still work). They're rendered from the SVG by real Chrome, so
 after changing the SVG regenerate the PNG/ICO files rather than editing
 them. `theme-color` follows light/dark (paper colours), not the icon.
 
