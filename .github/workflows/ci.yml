@@ -1,0 +1,38 @@
+# Builds the project on every pull request (including Renovate's update PRs).
+# Keep the job name "build": it's the check a ruleset can require before merging.
+
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SANITY_PROJECT_ID: ludvuc61
+      SANITY_DATASET: production
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Type and template errors fail the check
+      - run: npx astro check
+
+      # If the project doesn't build, the PR fails and nothing gets merged
+      - run: npm run build
